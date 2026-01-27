@@ -97,6 +97,7 @@ export class StrokeAnimator implements Animator {
     this._state = 'paused';
     // Note: pause stops sequencing; it does not freeze an in-progress stroke.
     this.clearAnimationTimeout();
+    this.isAnimatingStroke = false;
     this.emit({ type: 'pause' });
   }
 
@@ -125,6 +126,9 @@ export class StrokeAnimator implements Animator {
    * Advance to next stroke (manual mode)
    */
   async nextStroke(): Promise<void> {
+    if (this._state === 'playing') {
+      this.pause();
+    }
     if (this.isAnimatingStroke) return;
     if (this._currentStroke >= this.strokes.length) {
       if (this.loop) {
@@ -140,6 +144,14 @@ export class StrokeAnimator implements Animator {
    * Go back to previous stroke (manual mode)
    */
   previousStroke(): void {
+    if (this._state === 'playing') {
+      this.pause();
+      // Reset the current stroke since we interrupted it
+      if (this.strokes[this._currentStroke]) {
+        this.strokes[this._currentStroke].setProgress(0);
+      }
+    }
+
     if (this._currentStroke === 0) return;
 
     this._currentStroke--;
