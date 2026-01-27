@@ -115,6 +115,12 @@ describe('Kaku', () => {
       await expect(kaku.load('一')).rejects.toThrow('disposed');
     });
 
+    it('should reject multi-codepoint input', async () => {
+      kaku = new Kaku({ provider, container });
+
+      await expect(kaku.load('漢字')).rejects.toThrow('single code point');
+    });
+
     it('should apply render options', async () => {
       kaku = new Kaku({
         provider,

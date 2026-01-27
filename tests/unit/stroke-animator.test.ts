@@ -182,6 +182,17 @@ describe('StrokeAnimator', () => {
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    it('should restart when play is called after completion', async () => {
+      animator.play();
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(animator.state).toBe('completed');
+
+      animator.play();
+
+      expect(animator.state).toBe('playing');
+      expect(animator.currentStroke).toBe(0);
+    });
+
     it('should do nothing if no strokes', () => {
       const emptyAnimator = new StrokeAnimator();
       emptyAnimator.play();

@@ -72,6 +72,9 @@ export class StrokeAnimator implements Animator {
   play(): void {
     if (this.strokes.length === 0) return;
     if (this._state === 'playing') return;
+    if (this._state === 'completed') {
+      this.reset();
+    }
 
     const wasIdle = this._state === 'idle';
     this._state = 'playing';
@@ -92,6 +95,7 @@ export class StrokeAnimator implements Animator {
     if (this._state !== 'playing') return;
 
     this._state = 'paused';
+    // Note: pause stops sequencing; it does not freeze an in-progress stroke.
     this.clearAnimationTimeout();
     this.emit({ type: 'pause' });
   }

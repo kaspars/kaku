@@ -10,6 +10,7 @@ import type {
 } from '../types/index.js';
 import { SvgRenderer } from '../renderer/svg-renderer.js';
 import { StrokeAnimator } from '../animator/stroke-animator.js';
+import { getCodePoints } from '../utils/unicode.js';
 
 /**
  * Options for Kaku instance
@@ -101,6 +102,11 @@ export class Kaku {
   async load(char: string): Promise<void> {
     if (this.disposed) {
       throw new Error('Kaku instance has been disposed');
+    }
+
+    const codePoints = getCodePoints(char);
+    if (codePoints.length !== 1) {
+      throw new Error(`Kaku.load expects a single code point, got ${codePoints.length}`);
     }
 
     // Check if provider can handle this character
