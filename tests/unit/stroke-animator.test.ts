@@ -336,13 +336,31 @@ describe('StrokeAnimator', () => {
       expect(completeHandler).toHaveBeenCalled();
     });
 
-    it('should not animate while stroke is in progress', async () => {
+    it('should complete current stroke instantly on rapid clicks', async () => {
+      animator.nextStroke();
+      // Click again before animation completes
+      animator.nextStroke();
+
+      // First stroke should be completed instantly (setProgress(1) twice: once for animation, once for instant finish)
+      expect(strokes[0].setProgress).toHaveBeenCalledWith(1);
+      // Second stroke should start animating
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(1);
+      // Current stroke should be 1 (first completed, second animating)
+      expect(animator.currentStroke).toBe(1);
+    });
+
+    it('should handle multiple rapid clicks correctly', async () => {
+      // Rapid fire 3 clicks
+      animator.nextStroke();
       animator.nextStroke();
       animator.nextStroke();
 
-      // Only first stroke should be animated
-      expect(strokes[0].setProgress).toHaveBeenCalledTimes(1);
-      expect(strokes[1].setProgress).not.toHaveBeenCalled();
+      // All 3 strokes should have been set to visible
+      expect(strokes[0].setProgress).toHaveBeenCalledWith(1);
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(1);
+      expect(strokes[2].setProgress).toHaveBeenCalledWith(1);
+      // Current stroke should be 2 (animating the third)
+      expect(animator.currentStroke).toBe(2);
     });
 
     it('should do nothing when all strokes complete', async () => {
@@ -394,32 +412,67 @@ describe('StrokeAnimator', () => {
       expect(animator.currentStroke).toBe(0);
     });
 
+    it('should cancel animation without hiding extra stroke', async () => {
+      // Advance to stroke 2
+      animator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+      animator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(animator.currentStroke).toBe(2);
+
+      // Start animating stroke 2 (index 2)
+      animator.nextStroke();
+      // Go back while stroke 2 is animating - should only cancel stroke 2
+      animator.previousStroke();
+
+      // Still at stroke 2 (cancel counts as the go-back)
+      expect(animator.currentStroke).toBe(2);
+      // Stroke at index 2 should be hidden (cancelled)
+      expect(strokes[2].setProgress).toHaveBeenCalledWith(0);
+    });
+
+    it('should go back normally after cancel', async () => {
+      // Advance to stroke 2
+      animator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+      animator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+
+      // Start animating stroke 2, then cancel
+      animator.nextStroke();
+      animator.previousStroke(); // cancels, stays at 2
+      animator.previousStroke(); // now goes back to 1
+
+      expect(animator.currentStroke).toBe(1);
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(0);
+    });
+
     it('should pause and handle state correctly when called during playback', async () => {
       animator.play();
-      
+
       // Finish stroke 0
       await vi.advanceTimersByTimeAsync(500);
       expect(animator.currentStroke).toBe(1);
-      
+
       // Stroke 1 starts animating...
       // Call previousStroke while stroke 1 is animating
       animator.previousStroke();
-      
+
       // Expectation: Animation should pause
       expect(animator.state).toBe('paused');
 
-      // Expectation: currentStroke should be 0 (we went back)
-      expect(animator.currentStroke).toBe(0);
-      
-      // Stroke 0 should be hidden
-      expect(strokes[0].setProgress).toHaveBeenCalledWith(0);
-      
+      // Expectation: currentStroke should be 1 (cancel counts as go-back)
+      expect(animator.currentStroke).toBe(1);
+
+      // Stroke 1 should be hidden (cancelled)
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(0);
+
       // Finish stroke 1 animation duration (if it was still running)
       await vi.advanceTimersByTimeAsync(500);
-      
+
       // Expectation: No ghost jump to stroke 2
-      expect(animator.currentStroke).toBe(0); // Should stay at 0
-      
+      expect(animator.currentStroke).toBe(1); // Should stay at 1
+
       // Expectation: Stroke 2 should NOT have started
       expect(strokes[2].setProgress).not.toHaveBeenCalled();
     });

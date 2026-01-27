@@ -126,10 +126,18 @@ export class StrokeAnimator implements Animator {
    * Advance to next stroke (manual mode)
    */
   async nextStroke(): Promise<void> {
+    // Check if animating BEFORE pausing (pause clears the flag)
+    const wasAnimating = this.isAnimatingStroke;
+
     if (this._state === 'playing') {
       this.pause();
     }
-    if (this.isAnimatingStroke) return;
+
+    // If was animating, complete the current stroke instantly and advance
+    if (wasAnimating) {
+      this.finishCurrentStrokeInstantly();
+    }
+
     if (this._currentStroke >= this.strokes.length) {
       if (this.loop) {
         this.reset();
@@ -144,12 +152,17 @@ export class StrokeAnimator implements Animator {
    * Go back to previous stroke (manual mode)
    */
   previousStroke(): void {
+    // Check if animating BEFORE pausing (pause clears the flag)
+    const wasAnimating = this.isAnimatingStroke;
+
     if (this._state === 'playing') {
       this.pause();
-      // Reset the current stroke since we interrupted it
-      if (this.strokes[this._currentStroke]) {
-        this.strokes[this._currentStroke].setProgress(0);
-      }
+    }
+
+    // If was animating, cancel and hide the current stroke - this counts as going back
+    if (wasAnimating) {
+      this.cancelCurrentStroke();
+      return; // Cancel itself is the "go back" action
     }
 
     if (this._currentStroke === 0) return;
@@ -162,6 +175,41 @@ export class StrokeAnimator implements Animator {
     // Force reflow
     stroke.element.getBoundingClientRect();
     stroke.setTransition(this.strokeDuration, this.easing);
+  }
+
+  /**
+   * Instantly complete the current animating stroke
+   */
+  private finishCurrentStrokeInstantly(): void {
+    this.clearAnimationTimeout();
+
+    const stroke = this.strokes[this._currentStroke];
+    if (stroke) {
+      stroke.clearTransition();
+      stroke.setProgress(1);
+      stroke.element.getBoundingClientRect();
+      stroke.setTransition(this.strokeDuration, this.easing);
+    }
+
+    this._currentStroke++;
+    this.isAnimatingStroke = false;
+  }
+
+  /**
+   * Cancel the current animating stroke and hide it
+   */
+  private cancelCurrentStroke(): void {
+    this.clearAnimationTimeout();
+
+    const stroke = this.strokes[this._currentStroke];
+    if (stroke) {
+      stroke.clearTransition();
+      stroke.setProgress(0);
+      stroke.element.getBoundingClientRect();
+      stroke.setTransition(this.strokeDuration, this.easing);
+    }
+
+    this.isAnimatingStroke = false;
   }
 
   /**
