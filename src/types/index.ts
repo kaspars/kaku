@@ -22,4 +22,5 @@ export type {
   AnimationEvent,
   AnimationEventType,
   AnimationEventHandler,
+  StrokeEffect,
 } from './animator.js';

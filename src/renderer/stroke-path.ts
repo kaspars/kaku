@@ -73,9 +73,10 @@ export function createStrokePath(
   // Get path length
   const length = getPathLength(element);
 
-  // Initialize stroke to hidden state
+  // Initialize stroke to hidden state (for draw effect)
   element.style.strokeDasharray = String(length);
   element.style.strokeDashoffset = String(length);
+  element.style.opacity = '1';
 
   return {
     element,
@@ -93,6 +94,19 @@ export function createStrokePath(
     },
 
     clearTransition() {
+      element.style.transition = 'none';
+    },
+
+    setOpacity(opacity: number) {
+      const clampedOpacity = Math.max(0, Math.min(1, opacity));
+      element.style.opacity = String(clampedOpacity);
+    },
+
+    setOpacityTransition(duration: number, easing = 'ease') {
+      element.style.transition = `opacity ${duration}s ${easing}`;
+    },
+
+    clearOpacityTransition() {
       element.style.transition = 'none';
     },
   };

@@ -22,12 +22,18 @@ export interface RenderedStroke {
   element: SVGPathElement;
   /** Total length of the path */
   length: number;
-  /** Set the visible progress (0-1) */
+  /** Set the visible progress (0-1) for draw effect */
   setProgress(progress: number): void;
-  /** Set CSS transition for animation */
+  /** Set CSS transition for stroke-dashoffset animation */
   setTransition(duration: number, easing?: string): void;
-  /** Clear CSS transition */
+  /** Clear CSS transition for stroke-dashoffset */
   clearTransition(): void;
+  /** Set opacity (0-1) for fade effect */
+  setOpacity(opacity: number): void;
+  /** Set CSS transition for opacity animation */
+  setOpacityTransition(duration: number, easing?: string): void;
+  /** Clear CSS transition for opacity */
+  clearOpacityTransition(): void;
   /** The original stroke data */
   stroke: Stroke;
 }

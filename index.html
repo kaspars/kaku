@@ -164,9 +164,11 @@
       color: #333;
     }
 
-    .setting-row input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
+    .setting-row select {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.9rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
       cursor: pointer;
     }
   </style>
@@ -214,8 +216,12 @@
         <span class="value"><span id="speedValue">0.6</span>s</span>
       </div>
       <div class="setting-row">
-        <label for="animatedCheckbox">Animate Strokes:</label>
-        <input type="checkbox" id="animatedCheckbox" checked>
+        <label for="effectSelect">Stroke Effect:</label>
+        <select id="effectSelect">
+          <option value="draw" selected>Draw</option>
+          <option value="fade">Fade In</option>
+          <option value="none">None (instant)</option>
+        </select>
       </div>
     </div>
   </div>
@@ -226,7 +232,7 @@
     // Make kaku available globally for button handlers
     window.kaku = null;
     window.strokeDuration = 0.6;
-    window.animated = true;
+    window.strokeEffect = 'draw';
 
     // Create provider - uses local kanjivg files
     const provider = new KanjiVGProvider({
@@ -260,7 +266,7 @@
           gridColor: '#e0e0e0',
           animation: {
             strokeDuration: window.strokeDuration,
-            animated: window.animated,
+            strokeEffect: window.strokeEffect,
             loop: false
           }
         });
@@ -309,9 +315,9 @@
       }
     });
 
-    // Checkbox event handler
-    document.getElementById('animatedCheckbox').addEventListener('change', (e) => {
-      window.animated = e.target.checked;
+    // Effect select event handler
+    document.getElementById('effectSelect').addEventListener('change', (e) => {
+      window.strokeEffect = e.target.value;
 
       // Reload current character to apply new setting
       const char = document.getElementById('charInput').value.trim();

@@ -24,6 +24,9 @@ function createMockStrokes(count: number): RenderedStroke[] {
       setProgress: vi.fn(),
       setTransition: vi.fn(),
       clearTransition: vi.fn(),
+      setOpacity: vi.fn(),
+      setOpacityTransition: vi.fn(),
+      clearOpacityTransition: vi.fn(),
     } as RenderedStroke;
   });
 }
@@ -594,29 +597,56 @@ describe('StrokeAnimator', () => {
     });
   });
 
-  describe('animated option', () => {
-    it('should not set transitions when animated is false', () => {
-      const nonAnimatedAnimator = new StrokeAnimator({
-        strokeDuration: 0.5,
-        animated: false,
-      });
-      nonAnimatedAnimator.setStrokes(strokes);
+  describe('strokeEffect option', () => {
+    it('should use draw effect by default', () => {
+      animator.setStrokes(strokes);
 
-      // Transitions should not be set when animated is false
+      // Transitions should be set for draw effect
       for (const stroke of strokes) {
-        expect(stroke.setTransition).not.toHaveBeenCalled();
+        expect(stroke.setTransition).toHaveBeenCalledWith(0.5, 'ease');
       }
-
-      nonAnimatedAnimator.dispose();
     });
 
-    it('should still show strokes when animated is false', async () => {
-      const nonAnimatedAnimator = new StrokeAnimator({
+    it('should not set draw transitions when effect is none', () => {
+      const noneEffectAnimator = new StrokeAnimator({
         strokeDuration: 0.5,
-        animated: false,
+        strokeEffect: 'none',
       });
-      nonAnimatedAnimator.setStrokes(strokes);
-      nonAnimatedAnimator.play();
+      noneEffectAnimator.setStrokes(strokes);
+
+      // No transitions should be set
+      for (const stroke of strokes) {
+        expect(stroke.setTransition).not.toHaveBeenCalled();
+        expect(stroke.setOpacityTransition).not.toHaveBeenCalled();
+      }
+
+      noneEffectAnimator.dispose();
+    });
+
+    it('should use opacity for fade effect', () => {
+      const fadeAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        strokeEffect: 'fade',
+      });
+      fadeAnimator.setStrokes(strokes);
+
+      // Opacity transitions should be set
+      for (const stroke of strokes) {
+        expect(stroke.setProgress).toHaveBeenCalledWith(1); // Full path visible
+        expect(stroke.setOpacity).toHaveBeenCalledWith(0); // But invisible
+        expect(stroke.setOpacityTransition).toHaveBeenCalledWith(0.5, 'ease');
+      }
+
+      fadeAnimator.dispose();
+    });
+
+    it('should show strokes instantly with none effect', async () => {
+      const noneEffectAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        strokeEffect: 'none',
+      });
+      noneEffectAnimator.setStrokes(strokes);
+      noneEffectAnimator.play();
 
       // First stroke should be shown
       expect(strokes[0].setProgress).toHaveBeenCalledWith(1);
@@ -625,16 +655,16 @@ describe('StrokeAnimator', () => {
       await vi.advanceTimersByTimeAsync(500);
       expect(strokes[1].setProgress).toHaveBeenCalledWith(1);
 
-      nonAnimatedAnimator.dispose();
+      noneEffectAnimator.dispose();
     });
 
-    it('should respect strokeDuration delay even when not animated', async () => {
-      const nonAnimatedAnimator = new StrokeAnimator({
+    it('should respect strokeDuration delay even with none effect', async () => {
+      const noneEffectAnimator = new StrokeAnimator({
         strokeDuration: 0.5,
-        animated: false,
+        strokeEffect: 'none',
       });
-      nonAnimatedAnimator.setStrokes(strokes);
-      nonAnimatedAnimator.play();
+      noneEffectAnimator.setStrokes(strokes);
+      noneEffectAnimator.play();
 
       // Second stroke should not be shown yet
       expect(strokes[1].setProgress).not.toHaveBeenCalled();
@@ -647,27 +677,45 @@ describe('StrokeAnimator', () => {
       await vi.advanceTimersByTimeAsync(250);
       expect(strokes[1].setProgress).toHaveBeenCalledWith(1);
 
-      nonAnimatedAnimator.dispose();
+      noneEffectAnimator.dispose();
     });
 
-    it('should emit events normally when not animated', async () => {
-      const nonAnimatedAnimator = new StrokeAnimator({
+    it('should animate fade effect using opacity', async () => {
+      const fadeAnimator = new StrokeAnimator({
         strokeDuration: 0.5,
-        animated: false,
+        strokeEffect: 'fade',
       });
-      nonAnimatedAnimator.setStrokes(strokes);
+      fadeAnimator.setStrokes(strokes);
+      fadeAnimator.play();
+
+      // First stroke should be faded in
+      expect(strokes[0].setOpacity).toHaveBeenCalledWith(1);
+
+      // After duration, next stroke should fade in
+      await vi.advanceTimersByTimeAsync(500);
+      expect(strokes[1].setOpacity).toHaveBeenCalledWith(1);
+
+      fadeAnimator.dispose();
+    });
+
+    it('should emit events normally with all effects', async () => {
+      const noneEffectAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        strokeEffect: 'none',
+      });
+      noneEffectAnimator.setStrokes(strokes);
 
       const startHandler = vi.fn();
       const strokeStartHandler = vi.fn();
       const strokeCompleteHandler = vi.fn();
       const completeHandler = vi.fn();
 
-      nonAnimatedAnimator.on('start', startHandler);
-      nonAnimatedAnimator.on('strokeStart', strokeStartHandler);
-      nonAnimatedAnimator.on('strokeComplete', strokeCompleteHandler);
-      nonAnimatedAnimator.on('complete', completeHandler);
+      noneEffectAnimator.on('start', startHandler);
+      noneEffectAnimator.on('strokeStart', strokeStartHandler);
+      noneEffectAnimator.on('strokeComplete', strokeCompleteHandler);
+      noneEffectAnimator.on('complete', completeHandler);
 
-      nonAnimatedAnimator.play();
+      noneEffectAnimator.play();
       expect(startHandler).toHaveBeenCalled();
       expect(strokeStartHandler).toHaveBeenCalled();
 
@@ -675,7 +723,7 @@ describe('StrokeAnimator', () => {
       expect(strokeCompleteHandler).toHaveBeenCalledTimes(3);
       expect(completeHandler).toHaveBeenCalled();
 
-      nonAnimatedAnimator.dispose();
+      noneEffectAnimator.dispose();
     });
   });
 

@@ -34,6 +34,14 @@ export type AnimationEventHandler = (event: AnimationEvent) => void;
 /**
  * Animator options
  */
+/**
+ * Stroke animation effect type
+ * - 'draw': Stroke is drawn progressively (default)
+ * - 'fade': Stroke fades in
+ * - 'none': Stroke appears instantly
+ */
+export type StrokeEffect = 'draw' | 'fade' | 'none';
+
 export interface AnimatorOptions {
   /** Seconds per stroke */
   strokeDuration?: number;
@@ -45,8 +53,8 @@ export interface AnimatorOptions {
   loopDelay?: number;
   /** Auto-play on load */
   autoplay?: boolean;
-  /** Enable stroke drawing animation (default: true) */
-  animated?: boolean;
+  /** Stroke animation effect (default: 'draw') */
+  strokeEffect?: StrokeEffect;
 }
 
 /**

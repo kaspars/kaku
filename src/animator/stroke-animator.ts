@@ -6,6 +6,7 @@ import type {
   AnimationEventType,
   AnimationEventHandler,
   RenderedStroke,
+  StrokeEffect,
 } from '../types/index.js';
 
 /**
@@ -25,7 +26,7 @@ export class StrokeAnimator implements Animator {
   private readonly loop: boolean;
   private readonly loopDelay: number;
   private readonly autoplay: boolean;
-  private readonly animated: boolean;
+  private readonly strokeEffect: StrokeEffect;
 
   constructor(options: AnimatorOptions = {}) {
     this.strokeDuration = options.strokeDuration ?? 0.5;
@@ -33,7 +34,7 @@ export class StrokeAnimator implements Animator {
     this.loop = options.loop ?? false;
     this.loopDelay = options.loopDelay ?? 0;
     this.autoplay = options.autoplay ?? false;
-    this.animated = options.animated ?? true;
+    this.strokeEffect = options.strokeEffect ?? 'draw';
   }
 
   get state(): AnimationState {
@@ -58,11 +59,18 @@ export class StrokeAnimator implements Animator {
     this._state = 'idle';
     this.isAnimatingStroke = false;
 
-    // Setup transitions on all strokes (only if animated)
-    if (this.animated) {
-      for (const stroke of this.strokes) {
+    // Setup strokes based on effect type
+    for (const stroke of this.strokes) {
+      if (this.strokeEffect === 'draw') {
+        // Strokes start hidden via dashoffset, with transition
         stroke.setTransition(this.strokeDuration, this.easing);
+      } else if (this.strokeEffect === 'fade') {
+        // Strokes start hidden via opacity, show full path
+        stroke.setProgress(1); // Show full stroke path
+        stroke.setOpacity(0); // But invisible
+        stroke.setOpacityTransition(this.strokeDuration, this.easing);
       }
+      // 'none': strokes stay as initialized (hidden via dashoffset, no transition)
     }
 
     if (this.autoplay && this.strokes.length > 0) {
@@ -116,12 +124,19 @@ export class StrokeAnimator implements Animator {
 
     // Reset all strokes to hidden (instantly)
     for (const stroke of this.strokes) {
-      stroke.clearTransition();
-      stroke.setProgress(0);
-      // Force reflow and restore transition if animated
-      if (this.animated) {
+      if (this.strokeEffect === 'draw') {
+        stroke.clearTransition();
+        stroke.setProgress(0);
         stroke.element.getBoundingClientRect();
         stroke.setTransition(this.strokeDuration, this.easing);
+      } else if (this.strokeEffect === 'fade') {
+        stroke.clearOpacityTransition();
+        stroke.setOpacity(0);
+        stroke.element.getBoundingClientRect();
+        stroke.setOpacityTransition(this.strokeDuration, this.easing);
+      } else {
+        // 'none': just hide instantly
+        stroke.setProgress(0);
       }
     }
 
@@ -174,15 +189,7 @@ export class StrokeAnimator implements Animator {
     if (this._currentStroke === 0) return;
 
     this._currentStroke--;
-
-    const stroke = this.strokes[this._currentStroke];
-    stroke.clearTransition();
-    stroke.setProgress(0);
-    // Force reflow and restore transition if animated
-    if (this.animated) {
-      stroke.element.getBoundingClientRect();
-      stroke.setTransition(this.strokeDuration, this.easing);
-    }
+    this.hideStroke(this.strokes[this._currentStroke]);
   }
 
   /**
@@ -193,12 +200,7 @@ export class StrokeAnimator implements Animator {
 
     const stroke = this.strokes[this._currentStroke];
     if (stroke) {
-      stroke.clearTransition();
-      stroke.setProgress(1);
-      if (this.animated) {
-        stroke.element.getBoundingClientRect();
-        stroke.setTransition(this.strokeDuration, this.easing);
-      }
+      this.showStrokeInstantly(stroke);
     }
 
     this._currentStroke++;
@@ -213,15 +215,64 @@ export class StrokeAnimator implements Animator {
 
     const stroke = this.strokes[this._currentStroke];
     if (stroke) {
-      stroke.clearTransition();
-      stroke.setProgress(0);
-      if (this.animated) {
-        stroke.element.getBoundingClientRect();
-        stroke.setTransition(this.strokeDuration, this.easing);
-      }
+      this.hideStroke(stroke);
     }
 
     this.isAnimatingStroke = false;
+  }
+
+  /**
+   * Show a stroke instantly (no animation)
+   */
+  private showStrokeInstantly(stroke: RenderedStroke): void {
+    if (this.strokeEffect === 'draw') {
+      stroke.clearTransition();
+      stroke.setProgress(1);
+      stroke.element.getBoundingClientRect();
+      stroke.setTransition(this.strokeDuration, this.easing);
+    } else if (this.strokeEffect === 'fade') {
+      stroke.clearOpacityTransition();
+      stroke.setOpacity(1);
+      stroke.element.getBoundingClientRect();
+      stroke.setOpacityTransition(this.strokeDuration, this.easing);
+    } else {
+      stroke.setProgress(1);
+    }
+  }
+
+  /**
+   * Hide a stroke instantly (no animation)
+   */
+  private hideStroke(stroke: RenderedStroke): void {
+    if (this.strokeEffect === 'draw') {
+      stroke.clearTransition();
+      stroke.setProgress(0);
+      stroke.element.getBoundingClientRect();
+      stroke.setTransition(this.strokeDuration, this.easing);
+    } else if (this.strokeEffect === 'fade') {
+      stroke.clearOpacityTransition();
+      stroke.setOpacity(0);
+      stroke.element.getBoundingClientRect();
+      stroke.setOpacityTransition(this.strokeDuration, this.easing);
+    } else {
+      stroke.setProgress(0);
+    }
+  }
+
+  /**
+   * Show a stroke with animation
+   */
+  private showStrokeAnimated(stroke: RenderedStroke): void {
+    if (this.strokeEffect === 'draw') {
+      stroke.element.getBoundingClientRect();
+      stroke.setProgress(1);
+    } else if (this.strokeEffect === 'fade') {
+      stroke.element.getBoundingClientRect();
+      stroke.setOpacity(1);
+    } else {
+      // 'none': show instantly
+      stroke.setProgress(1);
+    }
   }
 
   /**
@@ -295,13 +346,8 @@ export class StrokeAnimator implements Animator {
         totalStrokes: this.strokes.length,
       });
 
-      if (this.animated) {
-        // Force reflow to ensure transition starts from current state
-        stroke.element.getBoundingClientRect();
-      }
-
-      // Show stroke (animated or instant)
-      stroke.setProgress(1);
+      // Show stroke with animation (or instantly for 'none' effect)
+      this.showStrokeAnimated(stroke);
 
       // Wait for duration before completing
       this.animationTimeout = setTimeout(() => {

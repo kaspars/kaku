@@ -126,4 +126,67 @@ describe('createStrokePath', () => {
       expect(rendered.element.style.transition).toBe('none');
     });
   });
+
+  describe('setOpacity', () => {
+    it('should set opacity to 0 (hidden)', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacity(0);
+
+      expect(rendered.element.style.opacity).toBe('0');
+    });
+
+    it('should set opacity to 1 (fully visible)', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacity(1);
+
+      expect(rendered.element.style.opacity).toBe('1');
+    });
+
+    it('should set opacity to 0.5', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacity(0.5);
+
+      expect(rendered.element.style.opacity).toBe('0.5');
+    });
+
+    it('should clamp opacity below 0', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacity(-0.5);
+
+      expect(rendered.element.style.opacity).toBe('0');
+    });
+
+    it('should clamp opacity above 1', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacity(1.5);
+
+      expect(rendered.element.style.opacity).toBe('1');
+    });
+  });
+
+  describe('setOpacityTransition', () => {
+    it('should set CSS opacity transition', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacityTransition(0.5);
+
+      expect(rendered.element.style.transition).toBe('opacity 0.5s ease');
+    });
+
+    it('should use custom easing', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacityTransition(1, 'linear');
+
+      expect(rendered.element.style.transition).toBe('opacity 1s linear');
+    });
+  });
+
+  describe('clearOpacityTransition', () => {
+    it('should remove opacity transition', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacityTransition(0.5);
+      rendered.clearOpacityTransition();
+
+      expect(rendered.element.style.transition).toBe('none');
+    });
+  });
 });
