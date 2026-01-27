@@ -195,6 +195,104 @@ describe('KanjiVGProvider', () => {
       // The behavior may vary, but we should handle it gracefully
       expect(result.success).toBe(false);
     });
+
+    it('should return error when SVG element is missing', async () => {
+      const noSvgContent = '<?xml version="1.0"?><html><body>Not SVG</body></html>';
+      mockFetch.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(noSvgContent),
+      });
+
+      const result = await provider.getCharacter('奸');
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('No SVG element found');
+      }
+    });
+
+    it('should use default viewBox when attribute is missing', async () => {
+      const svgWithoutViewBox = `<?xml version="1.0"?>
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:kvg="http://kanjivg.tagaini.net">
+          <path id="kvg:05978-s1" d="M10,10 L20,20"/>
+        </svg>`;
+      mockFetch.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(svgWithoutViewBox),
+      });
+
+      const result = await provider.getCharacter('奸');
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.viewBox).toEqual([0, 0, 109, 109]);
+      }
+    });
+
+    it('should use default viewBox when format is invalid', async () => {
+      const svgWithBadViewBox = `<?xml version="1.0"?>
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:kvg="http://kanjivg.tagaini.net" viewBox="invalid">
+          <path id="kvg:05978-s1" d="M10,10 L20,20"/>
+        </svg>`;
+      mockFetch.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(svgWithBadViewBox),
+      });
+
+      const result = await provider.getCharacter('奸');
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.viewBox).toEqual([0, 0, 109, 109]);
+      }
+    });
+
+    it('should use default viewBox when viewBox has wrong number of values', async () => {
+      const svgWithPartialViewBox = `<?xml version="1.0"?>
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:kvg="http://kanjivg.tagaini.net" viewBox="0 0 100">
+          <path id="kvg:05978-s1" d="M10,10 L20,20"/>
+        </svg>`;
+      mockFetch.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(svgWithPartialViewBox),
+      });
+
+      const result = await provider.getCharacter('奸');
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.viewBox).toEqual([0, 0, 109, 109]);
+      }
+    });
+
+    it('should return error when path is missing d attribute', async () => {
+      const svgWithMissingD = `<?xml version="1.0"?>
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:kvg="http://kanjivg.tagaini.net" viewBox="0 0 109 109">
+          <path id="kvg:05978-s1"/>
+        </svg>`;
+      mockFetch.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(svgWithMissingD),
+      });
+
+      const result = await provider.getCharacter('奸');
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toContain('Path missing d attribute');
+      }
+    });
+
+    it('should handle non-Error thrown values', async () => {
+      mockFetch.mockRejectedValue('string error');
+
+      const result = await provider.getCharacter('奸');
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Unknown error occurred');
+      }
+    });
   });
 
   describe('id property', () => {

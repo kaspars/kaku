@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createStrokePath } from '../../src/renderer/stroke-path';
 import type { Stroke } from '../../src/types';
 
@@ -187,6 +187,68 @@ describe('createStrokePath', () => {
       rendered.clearOpacityTransition();
 
       expect(rendered.element.style.transition).toBe('none');
+    });
+  });
+
+  describe('path length estimation fallback', () => {
+    it('should use default length for path with single point', () => {
+      const singlePointStroke: Stroke = {
+        pathData: 'M10,10',
+        metadata: { index: 0 },
+      };
+      const rendered = createStrokePath(singlePointStroke);
+
+      // Should fallback to default length of 100
+      expect(rendered.length).toBe(100);
+    });
+
+    it('should use default length for path with no coordinates', () => {
+      const emptyStroke: Stroke = {
+        pathData: 'Z',
+        metadata: { index: 0 },
+      };
+      const rendered = createStrokePath(emptyStroke);
+
+      // Should fallback to default length of 100
+      expect(rendered.length).toBe(100);
+    });
+
+    it('should use default length for empty path data', () => {
+      const emptyPathStroke: Stroke = {
+        pathData: '',
+        metadata: { index: 0 },
+      };
+      const rendered = createStrokePath(emptyPathStroke);
+
+      // Should fallback to default length of 100
+      expect(rendered.length).toBe(100);
+    });
+
+    it('should handle getTotalLength throwing an error', () => {
+      const stroke: Stroke = {
+        pathData: 'M10,10 L50,50',
+        metadata: { index: 0 },
+      };
+
+      // Create a path element to get access to its prototype
+      const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const proto = Object.getPrototypeOf(tempPath);
+      const originalGetTotalLength = proto.getTotalLength;
+
+      // Mock getTotalLength to throw
+      proto.getTotalLength = function() {
+        throw new Error('Not supported');
+      };
+
+      try {
+        const renderedWithThrow = createStrokePath(stroke);
+        // Should fallback to estimated length (approx 56.57 for diagonal)
+        expect(renderedWithThrow.length).toBeGreaterThan(0);
+        expect(renderedWithThrow.length).toBeCloseTo(56.57, 0);
+      } finally {
+        // Restore original
+        proto.getTotalLength = originalGetTotalLength;
+      }
     });
   });
 });
