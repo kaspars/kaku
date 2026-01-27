@@ -65,7 +65,15 @@ interface AnimatorOptions {
   loop?: boolean;           // Loop animation (default: false)
   loopDelay?: number;       // Delay before loop restart in seconds (default: 0)
   autoplay?: boolean;       // Auto-play on load (default: false)
+  strokeEffect?: 'draw' | 'fade' | 'none';  // Animation effect (default: 'draw')
 }
+```
+
+#### Stroke Effects
+
+- **`draw`** (default): Stroke is progressively drawn using stroke-dashoffset
+- **`fade`**: Stroke fades in using opacity transition
+- **`none`**: Stroke appears instantly (still respects strokeDuration as delay between strokes)
 ```
 
 #### Methods
@@ -102,6 +110,81 @@ kaku.on('complete', () => console.log('Animation complete'));
 kaku.on('pause', () => console.log('Paused'));
 kaku.on('resume', () => console.log('Resumed'));
 kaku.on('reset', () => console.log('Reset'));
+```
+
+### KakuDiagram
+
+Renders stroke order diagrams as a series of static SVGs, showing cumulative stroke progress.
+
+```typescript
+import { KakuDiagram, KanjiVGProvider } from 'kaku';
+
+const provider = new KanjiVGProvider({ basePath: '/kanjivg' });
+
+const diagram = new KakuDiagram({
+  provider,
+  container: document.getElementById('diagram'),
+  width: 80,
+  height: 80,
+  strokeColor: '#333',
+  strokeWidth: 3,
+  showGrid: true,
+});
+
+await diagram.load('漢');
+// Creates 13 SVGs (one per stroke), each showing cumulative progress:
+// SVG 1: stroke 1
+// SVG 2: strokes 1-2
+// ...
+// SVG 13: all strokes (complete character)
+```
+
+#### Constructor Options
+
+```typescript
+interface KakuDiagramOptions {
+  provider: DataProvider;      // Data provider (required)
+  container: HTMLElement;      // Container element (required)
+  width?: number | string;     // Per-SVG width (default: 109)
+  height?: number | string;    // Per-SVG height (default: 109)
+  strokeColor?: string;        // Stroke color (default: '#000')
+  strokeWidth?: number;        // Stroke width (default: 3)
+  showGrid?: boolean;          // Show grid lines (default: false)
+  gridColor?: string;          // Grid line color (default: '#ddd')
+}
+```
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `load(char: string): Promise<void>` | Load and render stroke order diagram |
+| `getSvgElements(): SVGSVGElement[]` | Get array of rendered SVG elements |
+| `getCharacterData(): CharacterData \| null` | Get loaded character data |
+| `clear(): void` | Remove all rendered SVGs |
+| `dispose(): void` | Clean up resources |
+
+#### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `character` | `string \| null` | Currently loaded character |
+| `totalStrokes` | `number` | Total number of strokes |
+
+#### Styling with CSS
+
+The container receives multiple SVG elements. Use CSS to control layout:
+
+```css
+.diagram-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.diagram-container svg {
+  border: 1px solid #eee;
+}
 ```
 
 ### KanjiVGProvider

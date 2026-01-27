@@ -11,7 +11,7 @@ Kaku is a TypeScript library for animating CJK (Chinese/Japanese/Korean) charact
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         Kaku                                │
-│                    (Orchestrator)                           │
+│                 (Animated Stroke Display)                   │
 ├─────────────────────────────────────────────────────────────┤
 │                           │                                 │
 │    ┌──────────────┐      │      ┌───────────────────┐     │
@@ -25,13 +25,27 @@ Kaku is a TypeScript library for animating CJK (Chinese/Japanese/Korean) charact
 │                                 │ (CSS transitions) │     │
 │                                 └───────────────────┘     │
 └─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                      KakuDiagram                            │
+│              (Static Stroke Order Diagrams)                 │
+├─────────────────────────────────────────────────────────────┤
+│                           │                                 │
+│    ┌──────────────┐      │      ┌───────────────────┐     │
+│    │ DataProvider │──────┼─────▶│  N × SVG Elements │     │
+│    │ (KanjiVG)    │      │      │ (cumulative view) │     │
+│    └──────────────┘      │      └───────────────────┘     │
+│                                                             │
+│    Output: SVG₁(stroke 1), SVG₂(1-2), ... SVGₙ(all)       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/core/kaku.ts` | Main API class, orchestrates components |
+| `src/core/kaku.ts` | Main API class, orchestrates animation components |
+| `src/core/kaku-diagram.ts` | Renders stroke order diagrams as multiple SVGs |
 | `src/providers/kanjivg-provider.ts` | Fetches and parses KanjiVG SVG files |
 | `src/renderer/svg-renderer.ts` | Creates SVG DOM elements |
 | `src/renderer/stroke-path.ts` | Wraps path elements with animation methods |
@@ -42,7 +56,11 @@ Kaku is a TypeScript library for animating CJK (Chinese/Japanese/Korean) charact
 
 ## Animation Technique
 
-Strokes are animated using the CSS `stroke-dashoffset` technique:
+The animator supports multiple stroke effects via the `strokeEffect` option:
+
+### Draw Effect (default)
+
+Uses CSS `stroke-dashoffset` technique:
 
 1. Each path has `stroke-dasharray` set to its total length
 2. `stroke-dashoffset` starts at the path length (hidden)
@@ -56,6 +74,17 @@ element.style.strokeDashoffset = String(length);  // Hidden
 element.style.transition = 'stroke-dashoffset 0.5s ease';
 element.style.strokeDashoffset = '0';  // Triggers animation
 ```
+
+### Fade Effect
+
+Uses CSS `opacity` transition:
+
+1. Path is fully drawn but opacity starts at 0
+2. Animate opacity to 1 (revealed)
+
+### None Effect
+
+Strokes appear instantly with no animation, but still respect `strokeDuration` as delay between strokes.
 
 ## Data Flow
 
@@ -137,6 +166,15 @@ npm run test:coverage # Coverage report
 1. Add option to `RenderOptions` in `src/types/renderer.ts`
 2. Handle in `SvgRenderer.render()`
 3. Pass through from `KakuOptions` in `src/core/kaku.ts`
+4. If applicable to diagrams, also update `KakuDiagram`
+
+### Adding Stroke Effects
+
+1. Add effect name to `StrokeEffect` type in `src/types/animator.ts`
+2. Handle initialization in `StrokeAnimator.setStrokes()`
+3. Handle reset in `StrokeAnimator.reset()`
+4. Handle show/hide in `showStrokeAnimated()`, `showStrokeInstantly()`, `hideStroke()`
+5. Add tests for new effect
 
 ## Build Output
 
