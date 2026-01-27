@@ -74,7 +74,6 @@ interface AnimatorOptions {
 - **`draw`** (default): Stroke is progressively drawn using stroke-dashoffset
 - **`fade`**: Stroke fades in using opacity transition
 - **`none`**: Stroke appears instantly (still respects strokeDuration as delay between strokes)
-```
 
 #### Methods
 
