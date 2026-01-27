@@ -171,6 +171,29 @@
       border-radius: 4px;
       cursor: pointer;
     }
+
+    h2 {
+      color: #333;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .diagram-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      padding: 1rem;
+      background: white;
+      border: 1px solid #eee;
+      border-radius: 4px;
+    }
+
+    .diagram-container svg {
+      border: 1px solid #eee;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -224,19 +247,35 @@
         </select>
       </div>
     </div>
+
+    <h2>Stroke Order Diagram</h2>
+    <div class="diagram-container" id="diagram"></div>
   </div>
 
   <script type="module">
-    import { Kaku, KanjiVGProvider } from './src/index.ts';
+    import { Kaku, KakuDiagram, KanjiVGProvider } from './src/index.ts';
 
     // Make kaku available globally for button handlers
     window.kaku = null;
+    window.diagram = null;
     window.strokeDuration = 0.6;
     window.strokeEffect = 'draw';
 
     // Create provider - uses local kanjivg files
     const provider = new KanjiVGProvider({
       basePath: '/kanjivg'
+    });
+
+    // Create diagram instance
+    window.diagram = new KakuDiagram({
+      provider,
+      container: document.getElementById('diagram'),
+      width: 80,
+      height: 80,
+      strokeColor: '#333',
+      strokeWidth: 3,
+      showGrid: true,
+      gridColor: '#e0e0e0',
     });
 
     function updateStatus() {
@@ -282,6 +321,9 @@
 
         await kaku.load(char);
         updateStatus();
+
+        // Also load the diagram
+        await window.diagram.load(char);
 
       } catch (err) {
         document.getElementById('error').textContent = err.message;

@@ -1,6 +1,8 @@
 // Main API
 export { Kaku } from './core/kaku.js';
 export type { KakuOptions } from './core/kaku.js';
+export { KakuDiagram } from './core/kaku-diagram.js';
+export type { KakuDiagramOptions } from './core/kaku-diagram.js';
 
 // Providers
 export { KanjiVGProvider } from './providers/kanjivg-provider.js';
@@ -31,6 +33,7 @@ export type {
   AnimationEvent,
   AnimationEventType,
   AnimationEventHandler,
+  StrokeEffect,
 } from './types/index.js';
 
 // Utilities
