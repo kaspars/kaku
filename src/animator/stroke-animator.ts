@@ -25,6 +25,7 @@ export class StrokeAnimator implements Animator {
   private readonly loop: boolean;
   private readonly loopDelay: number;
   private readonly autoplay: boolean;
+  private readonly animated: boolean;
 
   constructor(options: AnimatorOptions = {}) {
     this.strokeDuration = options.strokeDuration ?? 0.5;
@@ -32,6 +33,7 @@ export class StrokeAnimator implements Animator {
     this.loop = options.loop ?? false;
     this.loopDelay = options.loopDelay ?? 0;
     this.autoplay = options.autoplay ?? false;
+    this.animated = options.animated ?? true;
   }
 
   get state(): AnimationState {
@@ -56,9 +58,11 @@ export class StrokeAnimator implements Animator {
     this._state = 'idle';
     this.isAnimatingStroke = false;
 
-    // Setup transitions on all strokes
-    for (const stroke of this.strokes) {
-      stroke.setTransition(this.strokeDuration, this.easing);
+    // Setup transitions on all strokes (only if animated)
+    if (this.animated) {
+      for (const stroke of this.strokes) {
+        stroke.setTransition(this.strokeDuration, this.easing);
+      }
     }
 
     if (this.autoplay && this.strokes.length > 0) {
@@ -114,9 +118,11 @@ export class StrokeAnimator implements Animator {
     for (const stroke of this.strokes) {
       stroke.clearTransition();
       stroke.setProgress(0);
-      // Force reflow
-      stroke.element.getBoundingClientRect();
-      stroke.setTransition(this.strokeDuration, this.easing);
+      // Force reflow and restore transition if animated
+      if (this.animated) {
+        stroke.element.getBoundingClientRect();
+        stroke.setTransition(this.strokeDuration, this.easing);
+      }
     }
 
     this.emit({ type: 'reset' });
@@ -172,9 +178,11 @@ export class StrokeAnimator implements Animator {
     const stroke = this.strokes[this._currentStroke];
     stroke.clearTransition();
     stroke.setProgress(0);
-    // Force reflow
-    stroke.element.getBoundingClientRect();
-    stroke.setTransition(this.strokeDuration, this.easing);
+    // Force reflow and restore transition if animated
+    if (this.animated) {
+      stroke.element.getBoundingClientRect();
+      stroke.setTransition(this.strokeDuration, this.easing);
+    }
   }
 
   /**
@@ -187,8 +195,10 @@ export class StrokeAnimator implements Animator {
     if (stroke) {
       stroke.clearTransition();
       stroke.setProgress(1);
-      stroke.element.getBoundingClientRect();
-      stroke.setTransition(this.strokeDuration, this.easing);
+      if (this.animated) {
+        stroke.element.getBoundingClientRect();
+        stroke.setTransition(this.strokeDuration, this.easing);
+      }
     }
 
     this._currentStroke++;
@@ -205,8 +215,10 @@ export class StrokeAnimator implements Animator {
     if (stroke) {
       stroke.clearTransition();
       stroke.setProgress(0);
-      stroke.element.getBoundingClientRect();
-      stroke.setTransition(this.strokeDuration, this.easing);
+      if (this.animated) {
+        stroke.element.getBoundingClientRect();
+        stroke.setTransition(this.strokeDuration, this.easing);
+      }
     }
 
     this.isAnimatingStroke = false;
@@ -283,13 +295,15 @@ export class StrokeAnimator implements Animator {
         totalStrokes: this.strokes.length,
       });
 
-      // Force reflow to ensure transition starts from current state
-      stroke.element.getBoundingClientRect();
+      if (this.animated) {
+        // Force reflow to ensure transition starts from current state
+        stroke.element.getBoundingClientRect();
+      }
 
-      // Animate stroke to visible
+      // Show stroke (animated or instant)
       stroke.setProgress(1);
 
-      // Wait for animation to complete
+      // Wait for duration before completing
       this.animationTimeout = setTimeout(() => {
         this._currentStroke = index + 1;
         this.isAnimatingStroke = false;

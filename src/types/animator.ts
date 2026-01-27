@@ -45,6 +45,8 @@ export interface AnimatorOptions {
   loopDelay?: number;
   /** Auto-play on load */
   autoplay?: boolean;
+  /** Enable stroke drawing animation (default: true) */
+  animated?: boolean;
 }
 
 /**

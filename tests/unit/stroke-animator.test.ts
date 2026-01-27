@@ -594,6 +594,91 @@ describe('StrokeAnimator', () => {
     });
   });
 
+  describe('animated option', () => {
+    it('should not set transitions when animated is false', () => {
+      const nonAnimatedAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        animated: false,
+      });
+      nonAnimatedAnimator.setStrokes(strokes);
+
+      // Transitions should not be set when animated is false
+      for (const stroke of strokes) {
+        expect(stroke.setTransition).not.toHaveBeenCalled();
+      }
+
+      nonAnimatedAnimator.dispose();
+    });
+
+    it('should still show strokes when animated is false', async () => {
+      const nonAnimatedAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        animated: false,
+      });
+      nonAnimatedAnimator.setStrokes(strokes);
+      nonAnimatedAnimator.play();
+
+      // First stroke should be shown
+      expect(strokes[0].setProgress).toHaveBeenCalledWith(1);
+
+      // After duration, next stroke should be shown
+      await vi.advanceTimersByTimeAsync(500);
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(1);
+
+      nonAnimatedAnimator.dispose();
+    });
+
+    it('should respect strokeDuration delay even when not animated', async () => {
+      const nonAnimatedAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        animated: false,
+      });
+      nonAnimatedAnimator.setStrokes(strokes);
+      nonAnimatedAnimator.play();
+
+      // Second stroke should not be shown yet
+      expect(strokes[1].setProgress).not.toHaveBeenCalled();
+
+      // After half the duration, still waiting
+      await vi.advanceTimersByTimeAsync(250);
+      expect(strokes[1].setProgress).not.toHaveBeenCalled();
+
+      // After full duration, second stroke shown
+      await vi.advanceTimersByTimeAsync(250);
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(1);
+
+      nonAnimatedAnimator.dispose();
+    });
+
+    it('should emit events normally when not animated', async () => {
+      const nonAnimatedAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        animated: false,
+      });
+      nonAnimatedAnimator.setStrokes(strokes);
+
+      const startHandler = vi.fn();
+      const strokeStartHandler = vi.fn();
+      const strokeCompleteHandler = vi.fn();
+      const completeHandler = vi.fn();
+
+      nonAnimatedAnimator.on('start', startHandler);
+      nonAnimatedAnimator.on('strokeStart', strokeStartHandler);
+      nonAnimatedAnimator.on('strokeComplete', strokeCompleteHandler);
+      nonAnimatedAnimator.on('complete', completeHandler);
+
+      nonAnimatedAnimator.play();
+      expect(startHandler).toHaveBeenCalled();
+      expect(strokeStartHandler).toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(strokeCompleteHandler).toHaveBeenCalledTimes(3);
+      expect(completeHandler).toHaveBeenCalled();
+
+      nonAnimatedAnimator.dispose();
+    });
+  });
+
   describe('dispose', () => {
     it('should clear all state', () => {
       animator.setStrokes(strokes);
