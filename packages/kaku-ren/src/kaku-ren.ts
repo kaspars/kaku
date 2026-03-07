@@ -14,12 +14,19 @@ export interface KakuRenOptions {
   height: number;
   /** Drawing stroke color (default: '#333') */
   strokeColor?: string;
-  /** Drawing stroke width (default: 4) */
+  /**
+   * Drawing stroke width in CSS pixels.
+   * If omitted, automatically computed to match the SVG stroke width.
+   */
   strokeWidth?: number;
   /** Evaluation options */
   evaluation?: EvaluatorOptions;
   /** Duration of morph animation in ms (default: 80) */
   morphDuration?: number;
+  /** Show faint guide strokes behind the drawing area (default: true) */
+  showGuide?: boolean;
+  /** Color of guide strokes (default: '#ddd') */
+  guideColor?: string;
   /** Called when a stroke is accepted */
   onAccept?: (index: number, result: EvaluationResult) => void;
   /** Called when a stroke is rejected */
@@ -60,6 +67,8 @@ function samplePathDataDOM(d: string, N: number): { points: Point[]; length: num
 export class KakuRen {
   private kaku: Kaku;
   private input: StrokeInput;
+  private container: HTMLElement;
+  private guideSvg: SVGSVGElement | null = null;
   private scores: number[] = [];
   private disposed = false;
 
@@ -67,26 +76,40 @@ export class KakuRen {
   private readonly height: number;
   private readonly morphDuration: number;
   private readonly evaluationOptions: EvaluatorOptions;
+  private readonly guideColor: string;
   private readonly onAccept?: (index: number, result: EvaluationResult) => void;
   private readonly onReject?: (index: number, result: EvaluationResult) => void;
   private readonly onComplete?: (averageScore: number) => void;
 
   constructor(options: KakuRenOptions) {
     this.kaku = options.kaku;
+    this.container = options.container;
     this.width = options.width;
     this.height = options.height;
     this.morphDuration = options.morphDuration ?? 80;
     this.evaluationOptions = options.evaluation ?? {};
+    this.guideColor = options.guideColor ?? '#ddd';
     this.onAccept = options.onAccept;
     this.onReject = options.onReject;
     this.onComplete = options.onComplete;
+
+    // Auto-compute stroke width to match SVG if not explicitly provided
+    const strokeWidth = options.strokeWidth ?? this.computeStrokeWidth();
+
+    // Set up z-index layering on the Kaku SVG
+    this.setupLayering();
+
+    // Create guide overlay if requested (default: true)
+    if (options.showGuide !== false) {
+      this.createGuide();
+    }
 
     this.input = new StrokeInput({
       container: options.container,
       width: options.width,
       height: options.height,
       strokeColor: options.strokeColor,
-      strokeWidth: options.strokeWidth,
+      strokeWidth,
       onStrokeEnd: (points) => this.handleStroke(points),
     });
   }
@@ -121,6 +144,17 @@ export class KakuRen {
     return this.input.enabled;
   }
 
+  /** Show or hide the guide stroke overlay */
+  set guide(visible: boolean) {
+    if (this.guideSvg) {
+      this.guideSvg.style.display = visible ? '' : 'none';
+    }
+  }
+
+  get guide(): boolean {
+    return this.guideSvg ? this.guideSvg.style.display !== 'none' : false;
+  }
+
   /** Reset practice state (scores, failures) without reloading */
   reset(): void {
     this.scores = [];
@@ -134,6 +168,10 @@ export class KakuRen {
     if (this.disposed) return;
     this.disposed = true;
     this.input.dispose();
+    if (this.guideSvg) {
+      this.guideSvg.remove();
+      this.guideSvg = null;
+    }
   }
 
   /**
@@ -155,6 +193,79 @@ export class KakuRen {
     }
 
     this.input.enabled = true;
+  }
+
+  /**
+   * Compute canvas stroke width to match the Kaku SVG stroke width.
+   * SVG strokes are in viewBox units; scale to CSS pixels.
+   */
+  private computeStrokeWidth(): number {
+    const charData = this.kaku.getCharacterData();
+    if (!charData) return 4;
+
+    const viewBoxWidth = charData.viewBox[2];
+    const scaleFactor = this.width / viewBoxWidth;
+
+    // Read stroke-width from the Kaku SVG, defaulting to 3 (KanjiVG default)
+    const svg = this.kaku.getSvg();
+    const svgPath = svg?.querySelector('path');
+    const svgStrokeWidth = svgPath
+      ? parseFloat(getComputedStyle(svgPath).strokeWidth) || 3
+      : 3;
+
+    return Math.round(svgStrokeWidth * scaleFactor);
+  }
+
+  /**
+   * Set up z-index layering so Kaku SVG sits above the guide
+   * but below the drawing canvas.
+   */
+  private setupLayering(): void {
+    const svg = this.kaku.getSvg();
+    if (svg) {
+      svg.style.position = 'relative';
+      svg.style.zIndex = '2';
+    }
+  }
+
+  /**
+   * Create a faint guide SVG showing all stroke paths.
+   */
+  private createGuide(): void {
+    const charData = this.kaku.getCharacterData();
+    if (!charData) return;
+
+    const [vx, vy, vw, vh] = charData.viewBox;
+    const guideSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    guideSvg.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
+    guideSvg.setAttribute('width', String(this.width));
+    guideSvg.setAttribute('height', String(this.height));
+    guideSvg.style.position = 'absolute';
+    guideSvg.style.top = '0';
+    guideSvg.style.left = '0';
+    guideSvg.style.zIndex = '1';
+    guideSvg.style.pointerEvents = 'none';
+
+    // Read stroke width from Kaku SVG to match
+    const kakuSvg = this.kaku.getSvg();
+    const kakuPath = kakuSvg?.querySelector('path');
+    const strokeWidth = kakuPath
+      ? getComputedStyle(kakuPath).strokeWidth || '3'
+      : '3';
+
+    for (const stroke of charData.strokes) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', stroke.pathData);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', this.guideColor);
+      path.setAttribute('stroke-width', strokeWidth);
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      guideSvg.appendChild(path);
+    }
+
+    this.container.appendChild(guideSvg);
+    this.guideSvg = guideSvg;
   }
 
   private async handleStroke(userPoints: Point[]): Promise<void> {
@@ -194,7 +305,6 @@ export class KakuRen {
       }));
       await this.morphStroke(userPoints, correctCanvasPoints);
       this.input.clear();
-      this.failedAttempts = 0;
 
       await this.kaku.nextStroke();
       this.onAccept?.(strokeIndex, result);

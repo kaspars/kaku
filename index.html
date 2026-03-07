@@ -236,20 +236,6 @@
       border: 1px solid #ccc;
     }
 
-    /* Kaku SVG needs to sit above the faint guide but below the canvas */
-    #practice-canvas > svg:not(.practice-guide) {
-      position: relative;
-      z-index: 2;
-    }
-
-    .practice-guide {
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 1;
-      pointer-events: none;
-    }
-
     .practice-feedback {
       text-align: center;
       margin-top: 1rem;
@@ -621,44 +607,14 @@
 
         await practiceKaku.load(char);
 
-        // Build a faint guide SVG from the character data
-        const guideContainer = document.getElementById('practice-canvas');
-        const oldGuide = guideContainer.querySelector('.practice-guide');
-        if (oldGuide) oldGuide.remove();
-
-        const charData = practiceKaku.getCharacterData();
-        if (charData) {
-          const [vx, vy, vw, vh] = charData.viewBox;
-          const guideSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-          guideSvg.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
-          guideSvg.setAttribute('width', '300');
-          guideSvg.setAttribute('height', '300');
-          guideSvg.classList.add('practice-guide');
-          for (const stroke of charData.strokes) {
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', stroke.pathData);
-            path.setAttribute('fill', 'none');
-            path.setAttribute('stroke', '#ddd');
-            path.setAttribute('stroke-width', '4');
-            path.setAttribute('stroke-linecap', 'round');
-            path.setAttribute('stroke-linejoin', 'round');
-            guideSvg.appendChild(path);
-          }
-          guideContainer.appendChild(guideSvg);
-
-          // Apply current guide visibility
-          guideSvg.style.display = document.getElementById('guideCheckbox').checked ? '' : 'none';
-        }
-
-        // Overlay KakuRen for practice
+        // Overlay KakuRen for practice (guide + stroke width computed automatically)
         practiceRen = new KakuRen({
           kaku: practiceKaku,
           container: document.getElementById('practice-canvas'),
           width: 300,
           height: 300,
           strokeColor: '#333',
-          strokeWidth: Math.round(4 * 300 / 109), // match SVG stroke width
-          morphDuration: 80,
+          showGuide: document.getElementById('guideCheckbox').checked,
           onAccept(index, result) {
             const pct = Math.round(result.score * 100);
             showFeedback(`Stroke ${index + 1} accepted (${pct}%)`, 'accept');
@@ -713,9 +669,8 @@
     };
 
     document.getElementById('guideCheckbox').addEventListener('change', (e) => {
-      const guide = document.querySelector('.practice-guide');
-      if (guide) {
-        guide.style.display = e.target.checked ? '' : 'none';
+      if (practiceRen) {
+        practiceRen.guide = e.target.checked;
       }
     });
 

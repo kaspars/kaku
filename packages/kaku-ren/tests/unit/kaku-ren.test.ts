@@ -50,7 +50,13 @@ function makeMockKaku(strokeCount = 3) {
     })),
     nextStroke: vi.fn(async () => { currentStroke++; }),
     reset: vi.fn(() => { currentStroke = 0; }),
-    getSvg: vi.fn(() => document.createElementNS('http://www.w3.org/2000/svg', 'svg')),
+    getSvg: vi.fn(() => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('stroke-width', '3');
+      svg.appendChild(path);
+      return svg;
+    }),
     state: 'idle' as const,
     character: '字',
     dispose: vi.fn(),
