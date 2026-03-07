@@ -232,7 +232,8 @@
     /* Practice tab */
     #practice-canvas {
       position: relative;
-      display: block;
+      display: inline-block;
+      border: 1px solid #ccc;
     }
 
     /* Kaku SVG needs to sit above the faint guide but below the canvas */
@@ -391,6 +392,13 @@
         <div id="practice-canvas"></div>
       </div>
 
+      <div class="settings" style="margin-bottom: 1rem;">
+        <div class="setting-row">
+          <label for="guideCheckbox">Show guidelines:</label>
+          <input type="checkbox" id="guideCheckbox" checked>
+        </div>
+      </div>
+
       <div class="controls">
         <button onclick="resetPractice()" id="practiceResetBtn">Reset</button>
         <button onclick="playAllHints()" id="playHintsBtn">Play Hints (debug)</button>
@@ -398,13 +406,6 @@
 
       <div class="status">
         <div>Stroke: <strong id="practiceStrokeNum">0</strong> / <strong id="practiceTotalStrokes">0</strong></div>
-      </div>
-
-      <div class="settings">
-        <div class="setting-row">
-          <label for="guideCheckbox">Show guide:</label>
-          <input type="checkbox" id="guideCheckbox" checked>
-        </div>
       </div>
 
       <div class="practice-feedback" id="practiceFeedback"></div>
