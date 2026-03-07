@@ -13,10 +13,15 @@ Kaku Ren depends on Kaku. Kaku works standalone.
 
 ## Demo
 
-1. Install dependencies: `npm install`
-2. Download [KanjiVG](https://github.com/KanjiVG/kanjivg) SVG files into `public/kanjivg/`
-3. Start the dev server: `npm run dev`
-4. Open `http://localhost:5173`
+**[Live demo](https://kaspars.github.io/kaku/)** — try stroke animation and practice in the browser.
+
+To run locally:
+
+```bash
+npm install
+npm run dev
+open http://localhost:5173
+```
 
 ## Development
 

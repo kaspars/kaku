@@ -2,6 +2,8 @@
 
 A TypeScript library for CJK character stroke animation with pluggable data adapters.
 
+**[Live demo](https://kaspars.github.io/kaku/)**
+
 ## Installation
 
 ```bash
