@@ -47,17 +47,20 @@ function samplePathDataDOM(d: string, N: number): { points: Point[]; length: num
   // Temporarily add to DOM so geometry methods work
   document.body.appendChild(svg);
 
-  const totalLength = path.getTotalLength();
-  const points: Point[] = [];
+  try {
+    const totalLength = path.getTotalLength();
+    const points: Point[] = [];
 
-  for (let i = 0; i < N; i++) {
-    const t = i / (N - 1);
-    const pos = path.getPointAtLength(totalLength * t);
-    points.push({ x: pos.x, y: pos.y });
+    for (let i = 0; i < N; i++) {
+      const t = i / (N - 1);
+      const pos = path.getPointAtLength(totalLength * t);
+      points.push({ x: pos.x, y: pos.y });
+    }
+
+    return { points, length: totalLength };
+  } finally {
+    document.body.removeChild(svg);
   }
-
-  document.body.removeChild(svg);
-  return { points, length: totalLength };
 }
 
 /**

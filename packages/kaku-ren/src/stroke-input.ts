@@ -33,6 +33,7 @@ export class StrokeInput {
   private handlePointerDown: (e: PointerEvent) => void;
   private handlePointerMove: (e: PointerEvent) => void;
   private handlePointerUp: (e: PointerEvent) => void;
+  private handlePointerCancel: (e: PointerEvent) => void;
 
   constructor(options: StrokeInputOptions) {
     this.strokeColor = options.strokeColor ?? '#333';
@@ -66,10 +67,13 @@ export class StrokeInput {
     this.handlePointerDown = this.onPointerDown.bind(this);
     this.handlePointerMove = this.onPointerMove.bind(this);
     this.handlePointerUp = this.onPointerUp.bind(this);
+    this.handlePointerCancel = this.onPointerCancel.bind(this);
 
     this.canvas.addEventListener('pointerdown', this.handlePointerDown);
     this.canvas.addEventListener('pointermove', this.handlePointerMove);
     window.addEventListener('pointerup', this.handlePointerUp);
+    this.canvas.addEventListener('pointercancel', this.handlePointerCancel);
+    this.canvas.addEventListener('lostpointercapture', this.handlePointerCancel);
   }
 
   /** Whether input capture is enabled */
@@ -124,6 +128,8 @@ export class StrokeInput {
     this.canvas.removeEventListener('pointerdown', this.handlePointerDown);
     this.canvas.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('pointerup', this.handlePointerUp);
+    this.canvas.removeEventListener('pointercancel', this.handlePointerCancel);
+    this.canvas.removeEventListener('lostpointercapture', this.handlePointerCancel);
     this.canvas.remove();
   }
 
@@ -155,6 +161,12 @@ export class StrokeInput {
     if (this.points.length >= 2) {
       this.onStrokeEnd?.(this.points.slice());
     }
+  }
+
+  private onPointerCancel(_e: PointerEvent): void {
+    if (!this.drawing) return;
+    this.drawing = false;
+    this.clear();
   }
 
   private getPointerPos(e: PointerEvent): Point {
