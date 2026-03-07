@@ -234,6 +234,14 @@
 
     <div class="settings">
       <div class="setting-row">
+        <label for="autoplayCheckbox">Autoplay:</label>
+        <input type="checkbox" id="autoplayCheckbox" checked>
+      </div>
+      <div class="setting-row">
+        <label for="loopCheckbox">Loop:</label>
+        <input type="checkbox" id="loopCheckbox" checked>
+      </div>
+      <div class="setting-row">
         <label for="speedSlider">Stroke Duration:</label>
         <input type="range" id="speedSlider" min="0.1" max="2" step="0.1" value="0.6">
         <span class="value"><span id="speedValue">0.6</span>s</span>
@@ -260,6 +268,8 @@
     window.diagram = null;
     window.strokeDuration = 0.6;
     window.strokeEffect = 'draw';
+    window.autoplay = true;
+    window.loop = true;
 
     // Create provider - uses local kanjivg files
     const provider = new KanjiVGProvider({
@@ -306,7 +316,9 @@
           animation: {
             strokeDuration: window.strokeDuration,
             strokeEffect: window.strokeEffect,
-            loop: false
+            autoplay: window.autoplay,
+            loop: window.loop,
+            loopDelay: 1
           }
         });
 
@@ -362,6 +374,26 @@
       window.strokeEffect = e.target.value;
 
       // Reload current character to apply new setting
+      const char = document.getElementById('charInput').value.trim();
+      if (char) {
+        loadCharacter(char);
+      }
+    });
+
+    // Autoplay checkbox handler
+    document.getElementById('autoplayCheckbox').addEventListener('change', (e) => {
+      window.autoplay = e.target.checked;
+
+      const char = document.getElementById('charInput').value.trim();
+      if (char) {
+        loadCharacter(char);
+      }
+    });
+
+    // Loop checkbox handler
+    document.getElementById('loopCheckbox').addEventListener('change', (e) => {
+      window.loop = e.target.checked;
+
       const char = document.getElementById('charInput').value.trim();
       if (char) {
         loadCharacter(char);
