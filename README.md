@@ -301,20 +301,26 @@ Requires ES2020+ (modern browsers). Uses:
 - SVG for rendering
 - Promises/async-await
 
+## Demo
+
+The project includes an interactive demo at `index.html`. To run it:
+
+1. Install dependencies: `npm install`
+2. Download [KanjiVG](https://github.com/KanjiVG/kanjivg) SVG files into `public/kanjivg/`
+3. Start the dev server: `npm run dev`
+4. Open `http://localhost:5173`
+
+The demo lets you load any CJK character, control playback (play/pause/reset/step), adjust stroke speed, switch between stroke effects, and view stroke order diagrams.
+
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Build
-npm run build
+npm install          # Install dependencies
+npm run dev          # Start dev server with demo
+npm test             # Run tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
+npm run build        # Build library
 ```
 
 ## License
