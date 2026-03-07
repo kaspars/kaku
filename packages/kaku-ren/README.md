@@ -1,6 +1,8 @@
-# Kaku Ren
+# Kaku Ren (画練)
 
-CJK character stroke practice library. Captures user drawing input on a canvas overlay and evaluates stroke accuracy against expected strokes from [@kaspars/kaku](https://www.npmjs.com/package/@kaspars/kaku).
+A stroke practice library for building Japanese and Chinese character study tools. Captures user drawing input on a canvas overlay and evaluates stroke accuracy against expected strokes from [@kaspars/kaku](https://www.npmjs.com/package/@kaspars/kaku).
+
+The name comes from the Japanese 画練 — 画 (*kaku*, stroke) combined with 練 (*ren*, practice). Where [Kaku](https://www.npmjs.com/package/@kaspars/kaku) animates strokes, Kaku Ren lets you practice writing them.
 
 **[Live demo](https://kaspars.github.io/kaku/#practice)**
 

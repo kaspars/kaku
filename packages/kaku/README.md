@@ -1,6 +1,8 @@
-# Kaku
+# Kaku (画)
 
-A TypeScript library for CJK character stroke animation with pluggable data adapters. For interactive stroke practice, see [@kaspars/kaku-ren](https://www.npmjs.com/package/@kaspars/kaku-ren).
+A TypeScript library for CJK character stroke animation, suitable for building Japanese and Chinese character study tools. For interactive stroke practice, see [@kaspars/kaku-ren](https://www.npmjs.com/package/@kaspars/kaku-ren).
+
+Named after 画 (*kaku* in Japanese) — the kanji for "stroke," as in 画数 (*kakusū*, stroke count). It carries the dual meaning of drawing and the individual strokes that compose CJK characters.
 
 **[Live demo](https://kaspars.github.io/kaku/#animation)**
 
