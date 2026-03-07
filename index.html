@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kaku - Stroke Animation Demo</title>
+  <title>Kaku Demo</title>
   <style>
     * {
       box-sizing: border-box;
@@ -29,6 +29,44 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .tab-btn {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      color: #666;
+      font-weight: 500;
+    }
+
+    .tab-btn.active {
+      color: #4a90d9;
+      border-bottom-color: #4a90d9;
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: #333;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Shared */
     .character-input {
       display: flex;
       gap: 1rem;
@@ -65,10 +103,6 @@
       background: white;
       border: 1px solid #eee;
       border-radius: 4px;
-    }
-
-    #canvas {
-      display: block;
     }
 
     .controls {
@@ -194,76 +228,205 @@
       border: 1px solid #eee;
       border-radius: 4px;
     }
+
+    /* Practice tab */
+    #practice-canvas {
+      position: relative;
+      display: block;
+    }
+
+    .practice-feedback {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 1.1rem;
+      min-height: 1.5em;
+    }
+
+    .practice-feedback.accept {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+
+    .practice-feedback.reject {
+      color: #d32f2f;
+      font-weight: bold;
+    }
+
+    .practice-feedback.hint {
+      color: #f57c00;
+    }
+
+    .practice-feedback.complete {
+      color: #4a90d9;
+      font-weight: bold;
+      font-size: 1.25rem;
+    }
+
+    .score-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .score-bar .bar {
+      width: 200px;
+      height: 8px;
+      background: #eee;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .score-bar .bar-fill {
+      height: 100%;
+      background: #4a90d9;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    .kaku-ren-reject {
+      animation: shake 0.3s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
   </style>
 </head>
 <body>
-  <h1>Kaku - Stroke Animation</h1>
+  <h1>Kaku Demo</h1>
 
   <div class="container">
-    <div class="presets">
-      <button onclick="loadCharacter('漢')">漢</button>
-      <button onclick="loadCharacter('字')">字</button>
-      <button onclick="loadCharacter('学')">学</button>
-      <button onclick="loadCharacter('書')">書</button>
-      <button onclick="loadCharacter('愛')">愛</button>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="animation">Animation</button>
+      <button class="tab-btn" data-tab="practice">Practice</button>
     </div>
 
-    <div class="character-input">
-      <input type="text" id="charInput" maxlength="1" placeholder="Enter character" value="漢">
-      <button onclick="loadFromInput()">Load</button>
-    </div>
-
-    <div class="canvas-container">
-      <div id="canvas"></div>
-    </div>
-
-    <div class="controls">
-      <button onclick="kaku?.play()" id="playBtn">Play</button>
-      <button onclick="kaku?.pause()" id="pauseBtn">Pause</button>
-      <button onclick="kaku?.reset()" id="resetBtn">Reset</button>
-      <button onclick="kaku?.previousStroke()" id="prevBtn">← Previous</button>
-      <button onclick="kaku?.nextStroke()" id="nextBtn">Next →</button>
-    </div>
-
-    <div class="status">
-      <div>State: <strong id="state">idle</strong></div>
-      <div>Stroke: <strong id="strokeNum">0</strong> / <strong id="totalStrokes">0</strong></div>
-    </div>
-
-    <div class="error" id="error"></div>
-
-    <div class="settings">
-      <div class="setting-row">
-        <label for="autoplayCheckbox">Autoplay:</label>
-        <input type="checkbox" id="autoplayCheckbox" checked>
+    <!-- Animation Tab -->
+    <div class="tab-panel active" id="tab-animation">
+      <div class="presets">
+        <button onclick="loadCharacter('漢')">漢</button>
+        <button onclick="loadCharacter('字')">字</button>
+        <button onclick="loadCharacter('学')">学</button>
+        <button onclick="loadCharacter('書')">書</button>
+        <button onclick="loadCharacter('愛')">愛</button>
       </div>
-      <div class="setting-row">
-        <label for="loopCheckbox">Loop:</label>
-        <input type="checkbox" id="loopCheckbox" checked>
+
+      <div class="character-input">
+        <input type="text" id="charInput" maxlength="1" placeholder="Enter character" value="漢">
+        <button onclick="loadFromInput()">Load</button>
       </div>
-      <div class="setting-row">
-        <label for="speedSlider">Stroke Duration:</label>
-        <input type="range" id="speedSlider" min="0.1" max="2" step="0.1" value="0.7">
-        <span class="value"><span id="speedValue">0.7</span>s</span>
+
+      <div class="canvas-container">
+        <div id="canvas"></div>
       </div>
-      <div class="setting-row">
-        <label for="effectSelect">Stroke Effect:</label>
-        <select id="effectSelect">
-          <option value="draw" selected>Draw</option>
-          <option value="fade">Fade In</option>
-          <option value="none">None (instant)</option>
-        </select>
+
+      <div class="controls">
+        <button onclick="kaku?.play()" id="playBtn">Play</button>
+        <button onclick="kaku?.pause()" id="pauseBtn">Pause</button>
+        <button onclick="kaku?.reset()" id="resetBtn">Reset</button>
+        <button onclick="kaku?.previousStroke()" id="prevBtn">&larr; Previous</button>
+        <button onclick="kaku?.nextStroke()" id="nextBtn">Next &rarr;</button>
       </div>
+
+      <div class="status">
+        <div>State: <strong id="state">idle</strong></div>
+        <div>Stroke: <strong id="strokeNum">0</strong> / <strong id="totalStrokes">0</strong></div>
+      </div>
+
+      <div class="error" id="error"></div>
+
+      <div class="settings">
+        <div class="setting-row">
+          <label for="autoplayCheckbox">Autoplay:</label>
+          <input type="checkbox" id="autoplayCheckbox" checked>
+        </div>
+        <div class="setting-row">
+          <label for="loopCheckbox">Loop:</label>
+          <input type="checkbox" id="loopCheckbox" checked>
+        </div>
+        <div class="setting-row">
+          <label for="speedSlider">Stroke Duration:</label>
+          <input type="range" id="speedSlider" min="0.1" max="2" step="0.1" value="0.7">
+          <span class="value"><span id="speedValue">0.7</span>s</span>
+        </div>
+        <div class="setting-row">
+          <label for="effectSelect">Stroke Effect:</label>
+          <select id="effectSelect">
+            <option value="draw" selected>Draw</option>
+            <option value="fade">Fade In</option>
+            <option value="none">None (instant)</option>
+          </select>
+        </div>
+      </div>
+
+      <h2>Stroke Order Diagram</h2>
+      <div class="diagram-container" id="diagram"></div>
     </div>
 
-    <h2>Stroke Order Diagram</h2>
-    <div class="diagram-container" id="diagram"></div>
+    <!-- Practice Tab -->
+    <div class="tab-panel" id="tab-practice">
+      <div class="presets">
+        <button onclick="loadPractice('漢')">漢</button>
+        <button onclick="loadPractice('字')">字</button>
+        <button onclick="loadPractice('学')">学</button>
+        <button onclick="loadPractice('書')">書</button>
+        <button onclick="loadPractice('愛')">愛</button>
+      </div>
+
+      <div class="character-input">
+        <input type="text" id="practiceCharInput" maxlength="1" placeholder="Enter character" value="字">
+        <button onclick="loadPracticeFromInput()">Load</button>
+      </div>
+
+      <div class="canvas-container">
+        <div id="practice-canvas"></div>
+      </div>
+
+      <div class="controls">
+        <button onclick="resetPractice()" id="practiceResetBtn">Reset</button>
+        <button onclick="playAllHints()" id="playHintsBtn">Play Hints (debug)</button>
+      </div>
+
+      <div class="status">
+        <div>Stroke: <strong id="practiceStrokeNum">0</strong> / <strong id="practiceTotalStrokes">0</strong></div>
+      </div>
+
+      <div class="practice-feedback" id="practiceFeedback"></div>
+
+      <div class="score-bar">
+        <span>Score:</span>
+        <div class="bar"><div class="bar-fill" id="practiceScoreBar" style="width: 0%"></div></div>
+        <span id="practiceScoreText">-</span>
+      </div>
+
+      <div class="error" id="practiceError"></div>
+    </div>
   </div>
 
   <script type="module">
     import { Kaku, KakuDiagram, KanjiVGProvider } from './packages/kaku/src/index.ts';
+    import { KakuRen } from './packages/kaku-ren/src/index.ts';
 
-    // Make kaku available globally for button handlers
+    // --- Tab switching ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // --- Shared ---
+    const provider = new KanjiVGProvider({ basePath: '/kanjivg' });
+
+    // ==============================
+    // Animation Tab
+    // ==============================
     window.kaku = null;
     window.diagram = null;
     window.strokeDuration = 0.7;
@@ -271,12 +434,6 @@
     window.autoplay = true;
     window.loop = true;
 
-    // Create provider - uses local kanjivg files
-    const provider = new KanjiVGProvider({
-      basePath: '/kanjivg'
-    });
-
-    // Create diagram instance
     window.diagram = new KakuDiagram({
       provider,
       container: document.getElementById('diagram'),
@@ -298,7 +455,6 @@
       document.getElementById('error').textContent = '';
       document.getElementById('charInput').value = char;
 
-      // Dispose previous instance
       if (window.kaku) {
         window.kaku.dispose();
       }
@@ -322,7 +478,6 @@
           }
         });
 
-        // Subscribe to events
         kaku.on('start', updateStatus);
         kaku.on('strokeStart', updateStatus);
         kaku.on('strokeComplete', updateStatus);
@@ -334,7 +489,6 @@
         await kaku.load(char);
         updateStatus();
 
-        // Also load the diagram
         await window.diagram.load(char);
 
       } catch (err) {
@@ -345,63 +499,204 @@
 
     window.loadFromInput = function() {
       const char = document.getElementById('charInput').value.trim();
-      if (char) {
-        loadCharacter(char);
-      }
+      if (char) loadCharacter(char);
     };
 
-    // Handle Enter key in input
     document.getElementById('charInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        loadFromInput();
-      }
+      if (e.key === 'Enter') loadFromInput();
     });
 
-    // Slider event handler
     document.getElementById('speedSlider').addEventListener('input', (e) => {
       window.strokeDuration = parseFloat(e.target.value);
       document.getElementById('speedValue').textContent = window.strokeDuration.toFixed(1);
-
-      // Reload current character to apply new duration
       const char = document.getElementById('charInput').value.trim();
-      if (char) {
-        loadCharacter(char);
-      }
+      if (char) loadCharacter(char);
     });
 
-    // Effect select event handler
     document.getElementById('effectSelect').addEventListener('change', (e) => {
       window.strokeEffect = e.target.value;
-
-      // Reload current character to apply new setting
       const char = document.getElementById('charInput').value.trim();
-      if (char) {
-        loadCharacter(char);
-      }
+      if (char) loadCharacter(char);
     });
 
-    // Autoplay checkbox handler
     document.getElementById('autoplayCheckbox').addEventListener('change', (e) => {
       window.autoplay = e.target.checked;
-
       const char = document.getElementById('charInput').value.trim();
-      if (char) {
-        loadCharacter(char);
-      }
+      if (char) loadCharacter(char);
     });
 
-    // Loop checkbox handler
     document.getElementById('loopCheckbox').addEventListener('change', (e) => {
       window.loop = e.target.checked;
-
       const char = document.getElementById('charInput').value.trim();
-      if (char) {
-        loadCharacter(char);
-      }
+      if (char) loadCharacter(char);
     });
 
     // Load initial character
     loadCharacter('漢');
+
+    // ==============================
+    // Practice Tab
+    // ==============================
+    let practiceKaku = null;
+    let practiceRen = null;
+
+    const feedbackEl = document.getElementById('practiceFeedback');
+    const scoreBar = document.getElementById('practiceScoreBar');
+    const scoreText = document.getElementById('practiceScoreText');
+
+    function updatePracticeStatus() {
+      document.getElementById('practiceStrokeNum').textContent = practiceRen?.currentStroke ?? 0;
+      document.getElementById('practiceTotalStrokes').textContent = practiceRen?.totalStrokes ?? 0;
+    }
+
+    function updateScoreDisplay() {
+      const avg = practiceRen?.averageScore ?? 0;
+      const pct = Math.round(avg * 100);
+      scoreBar.style.width = pct + '%';
+      scoreText.textContent = practiceRen?.allScores.length > 0 ? pct + '%' : '-';
+    }
+
+    function showFeedback(text, className) {
+      feedbackEl.textContent = text;
+      feedbackEl.className = 'practice-feedback ' + className;
+    }
+
+    window.loadPractice = async function(char) {
+      document.getElementById('practiceError').textContent = '';
+      document.getElementById('practiceCharInput').value = char;
+      feedbackEl.textContent = 'Draw the first stroke!';
+      feedbackEl.className = 'practice-feedback';
+      scoreBar.style.width = '0%';
+      scoreText.textContent = '-';
+
+      // Dispose previous
+      if (practiceRen) {
+        practiceRen.dispose();
+        practiceRen = null;
+      }
+      if (practiceKaku) {
+        practiceKaku.dispose();
+        practiceKaku = null;
+      }
+
+      try {
+        // Create a Kaku instance in non-autoplay mode to show the guide
+        practiceKaku = new Kaku({
+          provider,
+          container: document.getElementById('practice-canvas'),
+          width: 300,
+          height: 300,
+          strokeColor: '#ccc',
+          strokeWidth: 4,
+          showGrid: true,
+          gridColor: '#e0e0e0',
+          animation: {
+            autoplay: false,
+            strokeEffect: 'none',
+          }
+        });
+
+        await practiceKaku.load(char);
+
+        // Build a faint guide SVG from the character data
+        const guideContainer = document.getElementById('practice-canvas');
+        const oldGuide = guideContainer.querySelector('.practice-guide');
+        if (oldGuide) oldGuide.remove();
+
+        const charData = practiceKaku.getCharacterData();
+        if (charData) {
+          const [vx, vy, vw, vh] = charData.viewBox;
+          const guideSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          guideSvg.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
+          guideSvg.setAttribute('width', '300');
+          guideSvg.setAttribute('height', '300');
+          guideSvg.classList.add('practice-guide');
+          Object.assign(guideSvg.style, {
+            position: 'absolute', top: '0', left: '0',
+            zIndex: '5', pointerEvents: 'none',
+          });
+          for (const stroke of charData.strokes) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', stroke.pathData);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', '#ddd');
+            path.setAttribute('stroke-width', '4');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            guideSvg.appendChild(path);
+          }
+          guideContainer.appendChild(guideSvg);
+        }
+
+        // Overlay KakuRen for practice
+        practiceRen = new KakuRen({
+          kaku: practiceKaku,
+          container: document.getElementById('practice-canvas'),
+          width: 300,
+          height: 300,
+          strokeColor: '#333',
+          strokeWidth: 5,
+          maxFailures: 3,
+          morphDuration: 200,
+          onAccept(index, result) {
+            const pct = Math.round(result.score * 100);
+            showFeedback(`Stroke ${index + 1} accepted (${pct}%)`, 'accept');
+            updatePracticeStatus();
+            updateScoreDisplay();
+          },
+          onReject(index, result) {
+            const reason = result.rejection === 'wrong-direction' ? ' (wrong direction)' :
+                           result.rejection === 'too-short' ? ' (too short)' :
+                           result.rejection === 'too-far' ? ' (too far off)' : '';
+            showFeedback(`Try again${reason}`, 'reject');
+            updatePracticeStatus();
+          },
+          onHint(index) {
+            showFeedback(`Hint: watch the stroke path`, 'hint');
+          },
+          onComplete(avgScore) {
+            const pct = Math.round(avgScore * 100);
+            showFeedback(`Complete! Average score: ${pct}%`, 'complete');
+            updatePracticeStatus();
+            updateScoreDisplay();
+          },
+        });
+
+        updatePracticeStatus();
+
+      } catch (err) {
+        document.getElementById('practiceError').textContent = err.message;
+        console.error(err);
+      }
+    };
+
+    window.loadPracticeFromInput = function() {
+      const char = document.getElementById('practiceCharInput').value.trim();
+      if (char) loadPractice(char);
+    };
+
+    window.resetPractice = function() {
+      if (practiceRen) {
+        practiceRen.reset();
+        feedbackEl.textContent = 'Draw the first stroke!';
+        feedbackEl.className = 'practice-feedback';
+        scoreBar.style.width = '0%';
+        scoreText.textContent = '-';
+        updatePracticeStatus();
+      }
+    };
+
+    window.playAllHints = async function() {
+      if (practiceRen) {
+        showFeedback('Playing all stroke hints...', 'hint');
+        await practiceRen.playHints();
+        showFeedback('Hints complete. Draw the first stroke!', '');
+      }
+    };
+
+    document.getElementById('practiceCharInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadPracticeFromInput();
+    });
   </script>
 </body>
 </html>

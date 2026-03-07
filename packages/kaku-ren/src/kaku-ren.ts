@@ -1,7 +1,6 @@
 import type { Kaku, CharacterData } from 'kaku';
 import { StrokeInput } from './stroke-input.js';
 import { evaluateStroke, resamplePoints } from './stroke-evaluator.js';
-import { samplePathData } from './path-utils.js';
 import type { Point, EvaluationResult, EvaluatorOptions } from './types.js';
 
 export interface KakuRenOptions {
@@ -31,6 +30,31 @@ export interface KakuRenOptions {
   onHint?: (index: number) => void;
   /** Called when all strokes are completed */
   onComplete?: (averageScore: number) => void;
+}
+
+/**
+ * Sample N equidistant points along an SVG path data string.
+ * Uses a temporary SVGPathElement for accurate Bézier curve sampling.
+ */
+function samplePathDataDOM(d: string, N: number): { points: Point[]; length: number } {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  svg.appendChild(path);
+  // Temporarily add to DOM so geometry methods work
+  document.body.appendChild(svg);
+
+  const totalLength = path.getTotalLength();
+  const points: Point[] = [];
+
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const pos = path.getPointAtLength(totalLength * t);
+    points.push({ x: pos.x, y: pos.y });
+  }
+
+  document.body.removeChild(svg);
+  return { points, length: totalLength };
 }
 
 /**
@@ -123,6 +147,27 @@ export class KakuRen {
     this.input.dispose();
   }
 
+  /**
+   * Debug mode: play all stroke hints one by one on the canvas.
+   * Useful for verifying that sampled paths match the actual strokes.
+   */
+  async playHints(): Promise<void> {
+    const charData = this.kaku.getCharacterData();
+    if (!charData) return;
+
+    this.input.enabled = false;
+    const viewBoxWidth = charData.viewBox[2];
+    const scaleFactor = this.width / viewBoxWidth;
+
+    for (let i = 0; i < charData.strokes.length; i++) {
+      await this.showHint(i, charData, scaleFactor);
+      // Brief pause between strokes
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    this.input.enabled = true;
+  }
+
   private async handleStroke(userPoints: Point[]): Promise<void> {
     const charData = this.kaku.getCharacterData();
     if (!charData) return;
@@ -138,8 +183,8 @@ export class KakuRen {
     const scaleFactor = this.width / viewBoxWidth;
     const N = this.evaluationOptions.sampleCount ?? 50;
 
-    // Sample expected stroke points from path data
-    const { points: expectedPoints, length: expectedLength } = samplePathData(stroke.pathData, N);
+    // Sample expected stroke points using SVG DOM (accurate Bézier sampling)
+    const { points: expectedPoints, length: expectedLength } = samplePathDataDOM(stroke.pathData, N);
 
     // Evaluate
     const result = evaluateStroke(
@@ -246,7 +291,7 @@ export class KakuRen {
     this.onHint?.(strokeIndex);
 
     const stroke = charData.strokes[strokeIndex];
-    const { points: sampledPoints } = samplePathData(stroke.pathData, 50);
+    const { points: sampledPoints } = samplePathDataDOM(stroke.pathData, 50);
 
     // Convert to canvas space
     const points = sampledPoints.map(p => ({
