@@ -1,4 +1,4 @@
-import type { Kaku, CharacterData } from 'kaku';
+import type { Kaku, CharacterData } from '@kaspars/kaku';
 import { StrokeInput } from './stroke-input.js';
 import { evaluateStroke, resamplePoints } from './stroke-evaluator.js';
 import type { Point, EvaluationResult, EvaluatorOptions } from './types.js';

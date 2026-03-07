@@ -5,10 +5,10 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "npm run build -w kaku && npm run build -w kaku-ren",
-    "test": "npm run test -w kaku && npm run test -w kaku-ren",
+    "build": "npm run build -w @kaspars/kaku && npm run build -w @kaspars/kaku-ren",
+    "test": "npm run test -w @kaspars/kaku && npm run test -w @kaspars/kaku-ren",
     "test:watch": "vitest",
-    "test:coverage": "npm run test:coverage -w kaku && npm run test:coverage -w kaku-ren"
+    "test:coverage": "npm run test:coverage -w @kaspars/kaku && npm run test:coverage -w @kaspars/kaku-ren"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

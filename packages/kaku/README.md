@@ -7,13 +7,13 @@ A TypeScript library for CJK character stroke animation with pluggable data adap
 ## Installation
 
 ```bash
-npm install kaku
+npm install @kaspars/kaku
 ```
 
 ## Quick Start
 
 ```typescript
-import { Kaku, KanjiVGProvider } from 'kaku';
+import { Kaku, KanjiVGProvider } from '@kaspars/kaku';
 
 // Create provider pointing to KanjiVG SVG files
 const provider = new KanjiVGProvider({
@@ -118,7 +118,7 @@ kaku.on('reset', () => console.log('Reset'));
 Renders stroke order diagrams as a series of static SVGs, showing cumulative stroke progress.
 
 ```typescript
-import { KakuDiagram, KanjiVGProvider } from 'kaku';
+import { KakuDiagram, KanjiVGProvider } from '@kaspars/kaku';
 
 const provider = new KanjiVGProvider({ basePath: '/kanjivg' });
 

@@ -1,5 +1,5 @@
 {
-  "name": "kaku",
+  "name": "@kaspars/kaku",
   "version": "1.0.0",
   "description": "CJK character stroke animation library with pluggable data adapters",
   "type": "module",
@@ -29,5 +29,12 @@
     "animation",
     "kanjivg"
   ],
-  "license": "MIT"
+  "author": "Kaspars Bankovskis <kaspars@bankovskis.net>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaspars/kaku.git",
+    "directory": "packages/kaku"
+  },
+  "homepage": "https://kaspars.github.io/kaku/#animation"
 }

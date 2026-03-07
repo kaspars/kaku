@@ -7,7 +7,7 @@ CJK character stroke practice library. Captures user drawing input on a canvas o
 ## Installation
 
 ```bash
-npm install kaku-ren kaku
+npm install @kaspars/kaku-ren @kaspars/kaku
 ```
 
 ## Overview

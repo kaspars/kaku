@@ -1,5 +1,5 @@
 {
-  "name": "kaku-ren",
+  "name": "@kaspars/kaku-ren",
   "version": "1.0.0",
   "description": "CJK character stroke practice with drawing input and evaluation",
   "type": "module",
@@ -23,7 +23,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "kaku": "^1.0.0"
+    "@kaspars/kaku": "^1.0.0"
   },
   "keywords": [
     "cjk",
@@ -32,5 +32,12 @@
     "practice",
     "handwriting"
   ],
-  "license": "MIT"
+  "author": "Kaspars Bankovskis <kaspars@bankovskis.net>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaspars/kaku.git",
+    "directory": "packages/kaku-ren"
+  },
+  "homepage": "https://kaspars.github.io/kaku/#practice"
 }
