@@ -438,21 +438,29 @@
     // --- Tab switching ---
     let practiceLoaded = false;
 
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    function switchTab(tabName) {
+      const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+      if (!btn) return;
 
-        // Auto-load practice on first switch to the tab
-        if (btn.dataset.tab === 'practice' && !practiceLoaded) {
-          practiceLoaded = true;
-          const char = document.getElementById('practiceCharInput').value.trim();
-          if (char) loadPractice(char);
-        }
-      });
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabName).classList.add('active');
+      location.hash = tabName;
+
+      if (tabName === 'practice' && !practiceLoaded) {
+        practiceLoaded = true;
+        const char = document.getElementById('practiceCharInput').value.trim();
+        if (char) loadPractice(char);
+      }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+
+    // Activate tab from URL hash on load (deferred until everything is defined)
+    const initialTab = location.hash.replace('#', '') || 'animation';
 
     // --- Shared ---
     const provider = new KanjiVGProvider({
@@ -714,6 +722,9 @@
     document.getElementById('practiceCharInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') loadPracticeFromInput();
     });
+
+    // Activate initial tab (must be after all functions are defined)
+    switchTab(initialTab);
   </script>
 </body>
 </html>
