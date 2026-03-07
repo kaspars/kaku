@@ -430,7 +430,9 @@
     });
 
     // --- Shared ---
-    const provider = new KanjiVGProvider({ basePath: '/kanjivg' });
+    const provider = new KanjiVGProvider({
+      basePath: 'https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji',
+    });
 
     // ==============================
     // Animation Tab
