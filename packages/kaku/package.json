@@ -1,0 +1,33 @@
+{
+  "name": "kaku",
+  "version": "1.0.0",
+  "description": "CJK character stroke animation library with pluggable data adapters",
+  "type": "module",
+  "main": "./dist/kaku.cjs",
+  "module": "./dist/kaku.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/kaku.js",
+      "require": "./dist/kaku.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "cjk",
+    "kanji",
+    "stroke",
+    "animation",
+    "kanjivg"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,36 @@
+{
+  "name": "kaku-ren",
+  "version": "1.0.0",
+  "description": "CJK character stroke practice with drawing input and evaluation",
+  "type": "module",
+  "main": "./dist/kaku-ren.cjs",
+  "module": "./dist/kaku-ren.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/kaku-ren.js",
+      "require": "./dist/kaku-ren.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "kaku": "^1.0.0"
+  },
+  "keywords": [
+    "cjk",
+    "kanji",
+    "stroke",
+    "practice",
+    "handwriting"
+  ],
+  "license": "MIT"
+}
