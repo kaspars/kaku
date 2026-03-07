@@ -74,12 +74,16 @@ describe('evaluateStroke', () => {
   const expectedPoints = hline(10, 100, 50, N);
   const expectedLength = 90; // 100 - 10
 
+  const canvasWidth = 200;
   // Scale factor: canvas 200px / viewBox 109 units
-  const scaleFactor = 200 / 109;
+  const scaleFactor = canvasWidth / 109;
 
   // Helper to convert viewBox points to canvas points
   function toCanvas(pts: Point[]): Point[] {
-    return pts.map(p => ({ x: p.x * scaleFactor, y: p.y * scaleFactor }));
+    return pts.map(p => ({
+      x: p.x * scaleFactor,
+      y: p.y * scaleFactor,
+    }));
   }
 
   it('gives high score for a matching stroke', () => {
@@ -242,16 +246,9 @@ describe('evaluateStroke', () => {
       }
       const diagLength = Math.sqrt(80 * 80 + 80 * 80);
 
-      const userDiag: Point[] = [];
-      for (let i = 0; i < 20; i++) {
-        const t = i / 19;
-        userDiag.push({
-          x: (10 + t * 80) * scaleFactor,
-          y: (10 + t * 80) * scaleFactor,
-        });
-      }
+      const userPoints = toCanvas(diag);
 
-      const result = evaluateStroke(userDiag, diag, diagLength, scaleFactor);
+      const result = evaluateStroke(userPoints, diag, diagLength, scaleFactor);
       expect(result.score).toBeGreaterThan(0.9);
     });
   });

@@ -26,7 +26,7 @@ export class StrokeInput {
   private _enabled = true;
 
   private readonly strokeColor: string;
-  private readonly strokeWidth: number;
+  private strokeWidth: number;
   private readonly onStrokeEnd?: (points: Point[]) => void;
 
   // Bound handlers for cleanup
@@ -94,6 +94,11 @@ export class StrokeInput {
   /** Clear the canvas */
   clear(): void {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  /** Update the stroke width */
+  setStrokeWidth(width: number): void {
+    this.strokeWidth = width;
   }
 
   /**

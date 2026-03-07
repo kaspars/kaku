@@ -23,9 +23,9 @@ const STROKES = [
   'M14.38,63.51c3.88,1.24,8.65,0.84,12.38,0.47c15.18-1.5,43-4.92,59.75-5.41c3.45-0.1,7.13-0.23,10.37,1.15',
 ];
 
-const VIEWBOX_SIZE = 109;
+const VIEWBOX: [number, number, number, number] = [0, 0, 109, 109];
 const CANVAS_SIZE = 300;
-const SCALE_FACTOR = CANVAS_SIZE / VIEWBOX_SIZE;
+const SCALE_FACTOR = CANVAS_SIZE / VIEWBOX[2]; // canvasWidth / viewBoxWidth
 const N = 50;
 
 /** Create an SVG path element with the given d attribute (uses jsdom mock) */

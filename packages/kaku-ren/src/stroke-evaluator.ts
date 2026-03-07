@@ -10,8 +10,8 @@ const DEFAULT_EVALUATION_RATIO = 1;
  *
  * @param userPoints - Raw points captured from user input (canvas coordinates)
  * @param expectedPoints - Points sampled from the expected SVG path (viewBox coordinates)
- * @param expectedLength - Total length of the expected SVG path
- * @param scaleFactor - Ratio to convert canvas coords to viewBox coords (canvasSize / viewBoxSize)
+ * @param expectedLength - Total length of the expected SVG path (viewBox units)
+ * @param scaleFactor - Ratio of canvas pixels to viewBox units (canvasWidth / viewBoxWidth)
  * @param options - Evaluation options
  */
 export function evaluateStroke(

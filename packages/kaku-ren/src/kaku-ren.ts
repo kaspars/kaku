@@ -74,6 +74,8 @@ export class KakuRen {
   private guideSvg: SVGSVGElement | null = null;
   private scores: number[] = [];
   private disposed = false;
+  private options: KakuRenOptions;
+  private sampledPointsCache: Map<string, { points: Point[]; length: number }> = new Map();
 
   private readonly width: number;
   private readonly height: number;
@@ -85,6 +87,7 @@ export class KakuRen {
   private readonly onComplete?: (averageScore: number) => void;
 
   constructor(options: KakuRenOptions) {
+    this.options = options;
     this.kaku = options.kaku;
     this.container = options.container;
     this.width = options.width;
@@ -166,6 +169,30 @@ export class KakuRen {
     this.kaku.reset();
   }
 
+  /**
+   * Refresh the practice overlay (e.g. after loading a new character in Kaku).
+   * Re-creates the guide and clears scores.
+   */
+  refresh(): void {
+    if (this.guideSvg) {
+      this.guideSvg.remove();
+      this.guideSvg = null;
+    }
+    this.sampledPointsCache.clear();
+    this.scores = [];
+    this.input.clear();
+    this.input.enabled = true;
+
+    if (this.options.showGuide !== false) {
+      this.createGuide();
+    }
+
+    // Update stroke width in case it changed
+    if (!this.options.strokeWidth) {
+      this.input.setStrokeWidth(this.computeStrokeWidth());
+    }
+  }
+
   /** Dispose and clean up */
   dispose(): void {
     if (this.disposed) return;
@@ -175,6 +202,7 @@ export class KakuRen {
       this.guideSvg.remove();
       this.guideSvg = null;
     }
+    this.sampledPointsCache.clear();
   }
 
   /**
@@ -209,9 +237,13 @@ export class KakuRen {
     const viewBoxWidth = charData.viewBox[2];
     const scaleFactor = this.width / viewBoxWidth;
 
-    // Read stroke-width from the Kaku SVG, defaulting to 3 (KanjiVG default)
+    // Read stroke-width from the Kaku SVG
     const svg = this.kaku.getSvg();
     const svgPath = svg?.querySelector('path');
+    
+    // getComputedStyle for SVG strokeWidth usually returns the value in user units
+    // (the units defined in the viewBox), not resolved screen pixels.
+    // Thus we need to scale it by our canvas-to-viewbox ratio.
     const svgStrokeWidth = svgPath
       ? parseFloat(getComputedStyle(svgPath).strokeWidth) || 3
       : 3;
@@ -286,8 +318,8 @@ export class KakuRen {
     const scaleFactor = this.width / viewBoxWidth;
     const N = this.evaluationOptions.sampleCount ?? 50;
 
-    // Sample expected stroke points using SVG DOM (accurate Bézier sampling)
-    const { points: expectedPoints, length: expectedLength } = samplePathDataDOM(stroke.pathData, N);
+    // Sample expected stroke points (using cache)
+    const { points: expectedPoints, length: expectedLength } = this.getSampledPoints(stroke.pathData, N);
 
     // Evaluate
     const result = evaluateStroke(
@@ -327,6 +359,19 @@ export class KakuRen {
     if (this.kaku.currentStroke < this.kaku.totalStrokes) {
       this.input.enabled = true;
     }
+  }
+
+  /**
+   * Get sampled points for a stroke, using cache if available.
+   */
+  private getSampledPoints(pathData: string, N: number): { points: Point[]; length: number } {
+    const cacheKey = `${pathData}:${N}`;
+    const cached = this.sampledPointsCache.get(cacheKey);
+    if (cached) return cached;
+
+    const sampled = samplePathDataDOM(pathData, N);
+    this.sampledPointsCache.set(cacheKey, sampled);
+    return sampled;
   }
 
   /**
@@ -376,7 +421,8 @@ export class KakuRen {
     scaleFactor: number,
   ): Promise<void> {
     const stroke = charData.strokes[strokeIndex];
-    const { points: sampledPoints } = samplePathDataDOM(stroke.pathData, 50);
+    const N = this.evaluationOptions.sampleCount ?? 50;
+    const { points: sampledPoints } = this.getSampledPoints(stroke.pathData, N);
 
     // Convert to canvas space
     const points = sampledPoints.map(p => ({
