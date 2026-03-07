@@ -299,15 +299,6 @@
       transition: width 0.3s;
     }
 
-    .kaku-ren-reject {
-      animation: shake 0.3s ease-in-out;
-    }
-
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-4px); }
-      75% { transform: translateX(4px); }
-    }
   </style>
 </head>
 <body>
@@ -666,7 +657,6 @@
           height: 300,
           strokeColor: '#333',
           strokeWidth: Math.round(4 * 300 / 109), // match SVG stroke width
-          maxFailures: 3,
           morphDuration: 80,
           onAccept(index, result) {
             const pct = Math.round(result.score * 100);
@@ -680,9 +670,6 @@
                            result.rejection === 'too-far' ? ' (too far off)' : '';
             showFeedback(`Try again${reason}`, 'reject');
             updatePracticeStatus();
-          },
-          onHint(index) {
-            showFeedback(`Hint: watch the stroke path`, 'hint');
           },
           onComplete(avgScore) {
             const pct = Math.round(avgScore * 100);

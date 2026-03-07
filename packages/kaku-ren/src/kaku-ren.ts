@@ -18,16 +18,12 @@ export interface KakuRenOptions {
   strokeWidth?: number;
   /** Evaluation options */
   evaluation?: EvaluatorOptions;
-  /** Max consecutive failures before showing hint (default: 3) */
-  maxFailures?: number;
   /** Duration of morph animation in ms (default: 80) */
   morphDuration?: number;
   /** Called when a stroke is accepted */
   onAccept?: (index: number, result: EvaluationResult) => void;
   /** Called when a stroke is rejected */
   onReject?: (index: number, result: EvaluationResult) => void;
-  /** Called when a hint is shown */
-  onHint?: (index: number) => void;
   /** Called when all strokes are completed */
   onComplete?: (averageScore: number) => void;
 }
@@ -64,32 +60,25 @@ function samplePathDataDOM(d: string, N: number): { points: Point[]; length: num
 export class KakuRen {
   private kaku: Kaku;
   private input: StrokeInput;
-  private container: HTMLElement;
   private scores: number[] = [];
-  private failedAttempts = 0;
   private disposed = false;
 
   private readonly width: number;
   private readonly height: number;
-  private readonly maxFailures: number;
   private readonly morphDuration: number;
   private readonly evaluationOptions: EvaluatorOptions;
   private readonly onAccept?: (index: number, result: EvaluationResult) => void;
   private readonly onReject?: (index: number, result: EvaluationResult) => void;
-  private readonly onHint?: (index: number) => void;
   private readonly onComplete?: (averageScore: number) => void;
 
   constructor(options: KakuRenOptions) {
     this.kaku = options.kaku;
-    this.container = options.container;
     this.width = options.width;
     this.height = options.height;
-    this.maxFailures = options.maxFailures ?? 3;
     this.morphDuration = options.morphDuration ?? 80;
     this.evaluationOptions = options.evaluation ?? {};
     this.onAccept = options.onAccept;
     this.onReject = options.onReject;
-    this.onHint = options.onHint;
     this.onComplete = options.onComplete;
 
     this.input = new StrokeInput({
@@ -135,7 +124,6 @@ export class KakuRen {
   /** Reset practice state (scores, failures) without reloading */
   reset(): void {
     this.scores = [];
-    this.failedAttempts = 0;
     this.input.clear();
     this.input.enabled = true;
     this.kaku.reset();
@@ -216,14 +204,10 @@ export class KakuRen {
         this.onComplete?.(this.averageScore);
       }
     } else {
-      // Rejection feedback
-      this.flashReject();
-      this.failedAttempts++;
+      // Rejection: clear user stroke and show hint
+      this.input.clear();
       this.onReject?.(strokeIndex, result);
-
-      if (this.failedAttempts >= this.maxFailures) {
-        await this.showHint(strokeIndex, charData, scaleFactor);
-      }
+      await this.showHint(strokeIndex, charData, scaleFactor);
     }
 
     // Re-enable input (unless completed)
@@ -271,17 +255,6 @@ export class KakuRen {
   }
 
   /**
-   * Flash the container to indicate rejection.
-   */
-  private flashReject(): void {
-    this.container.classList.add('kaku-ren-reject');
-    setTimeout(() => {
-      this.container.classList.remove('kaku-ren-reject');
-      this.input.clear();
-    }, 300);
-  }
-
-  /**
    * Show a hint by briefly animating the next expected stroke.
    */
   private async showHint(
@@ -289,8 +262,6 @@ export class KakuRen {
     charData: CharacterData,
     scaleFactor: number,
   ): Promise<void> {
-    this.onHint?.(strokeIndex);
-
     const stroke = charData.strokes[strokeIndex];
     const { points: sampledPoints } = samplePathDataDOM(stroke.pathData, 50);
 

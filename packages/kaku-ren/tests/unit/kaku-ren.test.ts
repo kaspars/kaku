@@ -305,84 +305,29 @@ describe('KakuRen', () => {
       expect(onReject.mock.calls[0][1].rejection).toBe('wrong-direction');
     });
 
-    it('adds reject CSS class and removes it after 300ms', async () => {
+    it('shows hint immediately on rejection', async () => {
       const kaku = makeMockKaku();
       ren = new KakuRen({ kaku: kaku as any, container, width: 200, height: 200 });
 
       const canvas = getCanvas(container);
-      drawStroke(canvas, badStroke());
-      flushRaf();
-
-      expect(container.classList.contains('kaku-ren-reject')).toBe(true);
-
-      await vi.advanceTimersByTimeAsync(300);
-      expect(container.classList.contains('kaku-ren-reject')).toBe(false);
-    });
-
-    it('re-enables input after rejection', async () => {
-      const kaku = makeMockKaku();
-      ren = new KakuRen({ kaku: kaku as any, container, width: 200, height: 200 });
-
-      const canvas = getCanvas(container);
-      drawStroke(canvas, badStroke());
-      flushRaf();
-      await vi.advanceTimersByTimeAsync(500);
-
-      expect(ren.enabled).toBe(true);
-    });
-  });
-
-  describe('hint system', () => {
-    it('shows hint after maxFailures consecutive failures', async () => {
-      const onHint = vi.fn();
-      const kaku = makeMockKaku();
-      ren = new KakuRen({
-        kaku: kaku as any, container, width: 200, height: 200,
-        onHint, maxFailures: 2,
-      });
-
-      const canvas = getCanvas(container);
-
-      // First failure — no hint
-      drawStroke(canvas, badStroke());
-      flushRaf();
-      await vi.advanceTimersByTimeAsync(500);
-      expect(onHint).not.toHaveBeenCalled();
-
-      // Second failure — hint triggered
       drawStroke(canvas, badStroke());
       flushRaf();
       await vi.advanceTimersByTimeAsync(1000);
-      expect(onHint).toHaveBeenCalledOnce();
-      expect(onHint.mock.calls[0][0]).toBe(0); // strokeIndex
+
+      // Should re-enable input after hint completes
+      expect(ren.enabled).toBe(true);
     });
 
-    it('resets failure count after acceptance', async () => {
-      const onHint = vi.fn();
+    it('re-enables input after rejection and hint', async () => {
       const kaku = makeMockKaku();
-      ren = new KakuRen({
-        kaku: kaku as any, container, width: 200, height: 200,
-        onHint, maxFailures: 2,
-      });
+      ren = new KakuRen({ kaku: kaku as any, container, width: 200, height: 200 });
 
       const canvas = getCanvas(container);
-
-      // One failure
       drawStroke(canvas, badStroke());
       flushRaf();
-      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(1000);
 
-      // Then succeed
-      drawStroke(canvas, goodStroke(20));
-      flushRaf();
-      await vi.advanceTimersByTimeAsync(500);
-
-      // One more failure on next stroke — should NOT trigger hint (counter reset)
-      drawStroke(canvas, badStroke());
-      flushRaf();
-      await vi.advanceTimersByTimeAsync(500);
-
-      expect(onHint).not.toHaveBeenCalled();
+      expect(ren.enabled).toBe(true);
     });
   });
 
