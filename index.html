@@ -13,7 +13,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       max-width: 800px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 1rem;
       background: #f5f5f5;
     }
 
@@ -25,8 +25,9 @@
     .container {
       background: white;
       border-radius: 8px;
-      padding: 2rem;
+      padding: 1.5rem;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      min-width: 332px;
     }
 
     /* Tabs */
@@ -75,6 +76,7 @@
 
     .character-input input {
       flex: 1;
+      min-width: 0;
       padding: 0.75rem;
       font-size: 1.5rem;
       border: 2px solid #ddd;
@@ -83,8 +85,9 @@
     }
 
     .character-input button {
-      padding: 0.75rem 1.5rem;
+      padding: 0.75rem 1rem;
       font-size: 1rem;
+      white-space: nowrap;
       background: #4a90d9;
       color: white;
       border: none;
@@ -101,8 +104,6 @@
       justify-content: center;
       margin: 2rem 0;
       background: white;
-      border: 1px solid #eee;
-      border-radius: 4px;
     }
 
     .controls {
@@ -145,12 +146,13 @@
     .presets {
       display: flex;
       justify-content: center;
+      flex-wrap: wrap;
       gap: 0.5rem;
       margin-bottom: 1rem;
     }
 
     .presets button {
-      padding: 0.5rem 1rem;
+      padding: 0.5rem 0.75rem;
       font-size: 1.25rem;
       background: #f0f0f0;
       border: 1px solid #ddd;
@@ -206,6 +208,26 @@
       cursor: pointer;
     }
 
+    @media (max-width: 500px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .setting-row {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+      }
+
+      .setting-row label {
+        min-width: auto;
+        text-align: left;
+      }
+
+      .character-input {
+        gap: 0.5rem;
+      }
+    }
+
     h2 {
       color: #333;
       margin-top: 2rem;
@@ -230,6 +252,7 @@
     }
 
     /* Practice tab */
+    #canvas,
     #practice-canvas {
       position: relative;
       display: inline-block;
@@ -434,6 +457,14 @@
       basePath: 'https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji',
     });
 
+    // Compute canvas size to fit container, max 300px
+    function getCanvasSize() {
+      const container = document.querySelector('.container');
+      const style = getComputedStyle(container);
+      const available = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      return Math.min(300, available);
+    }
+
     // ==============================
     // Animation Tab
     // ==============================
@@ -470,11 +501,12 @@
       }
 
       try {
+        const size = getCanvasSize();
         window.kaku = new Kaku({
           provider,
           container: document.getElementById('canvas'),
-          width: 300,
-          height: 300,
+          width: size,
+          height: size,
           strokeColor: '#333',
           strokeWidth: 4,
           showGrid: true,
@@ -591,11 +623,12 @@
 
       try {
         // Create a Kaku instance with dark strokes — accepted strokes appear here
+        const size = getCanvasSize();
         practiceKaku = new Kaku({
           provider,
           container: document.getElementById('practice-canvas'),
-          width: 300,
-          height: 300,
+          width: size,
+          height: size,
           strokeColor: '#333',
           strokeWidth: 4,
           showGrid: true,
@@ -613,8 +646,8 @@
         practiceRen = new KakuRen({
           kaku: practiceKaku,
           container: document.getElementById('practice-canvas'),
-          width: 300,
-          height: 300,
+          width: size,
+          height: size,
           strokeColor: '#333',
           showGuide: document.getElementById('guideCheckbox').checked,
           onAccept(index, result) {
