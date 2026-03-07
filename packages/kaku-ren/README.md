@@ -2,7 +2,7 @@
 
 CJK character stroke practice library. Captures user drawing input on a canvas overlay and evaluates stroke accuracy against expected strokes from [Kaku](../kaku/).
 
-**[Live demo](https://kaspars.github.io/kaku/)** (Practice tab)
+**[Live demo](https://kaspars.github.io/kaku/#practice)**
 
 ## Installation
 
