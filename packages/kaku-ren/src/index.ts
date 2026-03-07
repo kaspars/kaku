@@ -1,2 +1,2 @@
-// kaku-ren: CJK character stroke practice library
-// Placeholder — implementation coming soon
+export { evaluateStroke, sampleExpectedStroke, resamplePoints } from './stroke-evaluator.js';
+export type { Point, EvaluationResult, EvaluatorOptions } from './types.js';
