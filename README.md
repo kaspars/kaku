@@ -63,7 +63,7 @@ interface AnimatorOptions {
   strokeDuration?: number;  // Seconds per stroke (default: 0.5)
   easing?: string;          // CSS easing (default: 'ease')
   loop?: boolean;           // Loop animation (default: false)
-  loopDelay?: number;       // Delay before loop restart in seconds (default: 0)
+  loopDelay?: number;       // Delay before loop restart in seconds (default: 1)
   autoplay?: boolean;       // Auto-play on load (default: false)
   strokeEffect?: 'draw' | 'fade' | 'none';  // Animation effect (default: 'draw')
 }

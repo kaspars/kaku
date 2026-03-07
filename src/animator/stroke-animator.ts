@@ -32,7 +32,7 @@ export class StrokeAnimator implements Animator {
     this.strokeDuration = options.strokeDuration ?? 0.5;
     this.easing = options.easing ?? 'ease';
     this.loop = options.loop ?? false;
-    this.loopDelay = options.loopDelay ?? 0;
+    this.loopDelay = options.loopDelay ?? 1;
     this.autoplay = options.autoplay ?? false;
     this.strokeEffect = options.strokeEffect ?? 'draw';
   }
