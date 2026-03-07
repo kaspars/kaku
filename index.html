@@ -235,6 +235,20 @@
       display: block;
     }
 
+    /* Kaku SVG needs to sit above the faint guide but below the canvas */
+    #practice-canvas > svg:not(.practice-guide) {
+      position: relative;
+      z-index: 2;
+    }
+
+    .practice-guide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
     .practice-feedback {
       text-align: center;
       margin-top: 1rem;
@@ -395,6 +409,13 @@
         <div>Stroke: <strong id="practiceStrokeNum">0</strong> / <strong id="practiceTotalStrokes">0</strong></div>
       </div>
 
+      <div class="settings">
+        <div class="setting-row">
+          <label for="guideCheckbox">Show guide:</label>
+          <input type="checkbox" id="guideCheckbox" checked>
+        </div>
+      </div>
+
       <div class="practice-feedback" id="practiceFeedback"></div>
 
       <div class="score-bar">
@@ -412,12 +433,21 @@
     import { KakuRen } from './packages/kaku-ren/src/index.ts';
 
     // --- Tab switching ---
+    let practiceLoaded = false;
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+        // Auto-load practice on first switch to the tab
+        if (btn.dataset.tab === 'practice' && !practiceLoaded) {
+          practiceLoaded = true;
+          const char = document.getElementById('practiceCharInput').value.trim();
+          if (char) loadPractice(char);
+        }
       });
     });
 
@@ -580,19 +610,20 @@
       }
 
       try {
-        // Create a Kaku instance in non-autoplay mode to show the guide
+        // Create a Kaku instance with dark strokes — accepted strokes appear here
         practiceKaku = new Kaku({
           provider,
           container: document.getElementById('practice-canvas'),
           width: 300,
           height: 300,
-          strokeColor: '#ccc',
+          strokeColor: '#333',
           strokeWidth: 4,
           showGrid: true,
           gridColor: '#e0e0e0',
           animation: {
             autoplay: false,
             strokeEffect: 'none',
+            strokeDuration: 0,
           }
         });
 
@@ -611,10 +642,6 @@
           guideSvg.setAttribute('width', '300');
           guideSvg.setAttribute('height', '300');
           guideSvg.classList.add('practice-guide');
-          Object.assign(guideSvg.style, {
-            position: 'absolute', top: '0', left: '0',
-            zIndex: '5', pointerEvents: 'none',
-          });
           for (const stroke of charData.strokes) {
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', stroke.pathData);
@@ -626,6 +653,9 @@
             guideSvg.appendChild(path);
           }
           guideContainer.appendChild(guideSvg);
+
+          // Apply current guide visibility
+          guideSvg.style.display = document.getElementById('guideCheckbox').checked ? '' : 'none';
         }
 
         // Overlay KakuRen for practice
@@ -635,9 +665,9 @@
           width: 300,
           height: 300,
           strokeColor: '#333',
-          strokeWidth: 5,
+          strokeWidth: Math.round(4 * 300 / 109), // match SVG stroke width
           maxFailures: 3,
-          morphDuration: 200,
+          morphDuration: 80,
           onAccept(index, result) {
             const pct = Math.round(result.score * 100);
             showFeedback(`Stroke ${index + 1} accepted (${pct}%)`, 'accept');
@@ -693,6 +723,13 @@
         showFeedback('Hints complete. Draw the first stroke!', '');
       }
     };
+
+    document.getElementById('guideCheckbox').addEventListener('change', (e) => {
+      const guide = document.querySelector('.practice-guide');
+      if (guide) {
+        guide.style.display = e.target.checked ? '' : 'none';
+      }
+    });
 
     document.getElementById('practiceCharInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') loadPracticeFromInput();

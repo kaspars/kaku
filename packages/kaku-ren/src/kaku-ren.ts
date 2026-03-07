@@ -20,7 +20,7 @@ export interface KakuRenOptions {
   evaluation?: EvaluatorOptions;
   /** Max consecutive failures before showing hint (default: 3) */
   maxFailures?: number;
-  /** Duration of morph animation in ms (default: 150) */
+  /** Duration of morph animation in ms (default: 80) */
   morphDuration?: number;
   /** Called when a stroke is accepted */
   onAccept?: (index: number, result: EvaluationResult) => void;
@@ -85,7 +85,7 @@ export class KakuRen {
     this.width = options.width;
     this.height = options.height;
     this.maxFailures = options.maxFailures ?? 3;
-    this.morphDuration = options.morphDuration ?? 150;
+    this.morphDuration = options.morphDuration ?? 80;
     this.evaluationOptions = options.evaluation ?? {};
     this.onAccept = options.onAccept;
     this.onReject = options.onReject;
@@ -137,6 +137,7 @@ export class KakuRen {
     this.scores = [];
     this.failedAttempts = 0;
     this.input.clear();
+    this.input.enabled = true;
     this.kaku.reset();
   }
 
@@ -311,7 +312,7 @@ export class KakuRen {
         const visible = points.slice(0, count);
 
         this.input.clear();
-        this.input.drawPoints(visible, 'rgba(100, 100, 100, 0.3)', 6);
+        this.input.drawPoints(visible, 'rgba(100, 100, 100, 0.3)');
 
         if (t < 1) {
           requestAnimationFrame(animate);
