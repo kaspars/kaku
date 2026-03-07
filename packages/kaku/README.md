@@ -1,6 +1,6 @@
 # Kaku
 
-A TypeScript library for CJK character stroke animation with pluggable data adapters.
+A TypeScript library for CJK character stroke animation with pluggable data adapters. For interactive stroke practice, see [@kaspars/kaku-ren](https://www.npmjs.com/package/@kaspars/kaku-ren).
 
 **[Live demo](https://kaspars.github.io/kaku/#animation)**
 

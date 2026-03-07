@@ -1,6 +1,6 @@
 # Kaku Ren
 
-CJK character stroke practice library. Captures user drawing input on a canvas overlay and evaluates stroke accuracy against expected strokes from [Kaku](../kaku/).
+CJK character stroke practice library. Captures user drawing input on a canvas overlay and evaluates stroke accuracy against expected strokes from [@kaspars/kaku](https://www.npmjs.com/package/@kaspars/kaku).
 
 **[Live demo](https://kaspars.github.io/kaku/#practice)**
 
