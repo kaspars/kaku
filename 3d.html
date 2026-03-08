@@ -491,6 +491,16 @@
     const MAX_HEALTH = 3;
     const FLASH_DURATION = 0.15;
     const flashingModels = new Map(); // model -> { timer, meshes[] }
+    const BURST_DURATION = 1.2;
+    const BURST_PARTICLE_COUNT = 120;
+    const BURST_SPEED = 150;
+    const BURST_GRAVITY = 200;
+    const activeBursts = []; // { points, velocities, timer }
+
+    // Knockback: brief push away from shooter
+    const KNOCKBACK_DURATION = 0.25;
+    const KNOCKBACK_SPEED = 250;
+    const knockbacks = new Map(); // model -> { dirX, dirZ, timer }
 
     // Projectile geometry/material (shared)
     const projGeometry = new THREE.CapsuleGeometry(1.5, 6, 4, 8);
@@ -559,7 +569,7 @@
           const dist = p.mesh.position.distanceTo(center);
           if (dist < HIT_RADIUS) {
             hit = true;
-            onHit(model);
+            onHit(model, p.direction);
             break;
           }
         }
@@ -586,9 +596,19 @@
       }
     }
 
-    function onHit(model) {
+    function onHit(model, shotDirection) {
       const health = (modelHealth.get(model) ?? MAX_HEALTH) - 1;
       modelHealth.set(model, health);
+
+      // Knockback push on non-fatal hits
+      if (health > 0) {
+        const len = Math.sqrt(shotDirection.x ** 2 + shotDirection.z ** 2) || 1;
+        knockbacks.set(model, {
+          dirX: shotDirection.x / len,
+          dirZ: shotDirection.z / len,
+          timer: KNOCKBACK_DURATION,
+        });
+      }
 
       // Flash — tint the model's color toward reddish, then fade back
       // All meshes in a character share one material, so deduplicate
@@ -613,13 +633,67 @@
       flashingModels.set(model, { timer: FLASH_DURATION, materials });
 
       if (health <= 0) {
-        // Remove after brief flash
-        setTimeout(() => {
-          modelHealth.delete(model);
-          flashingModels.delete(model);
-          scene3d.removeModel(model);
-        }, FLASH_DURATION * 1000);
+        // Restore original color before burst samples it
+        const flash = flashingModels.get(model);
+        if (flash) {
+          for (const { material, origColor } of flash.materials) {
+            material.color.copy(origColor);
+          }
+        }
+        spawnParticleBurst(model);
+        modelHealth.delete(model);
+        flashingModels.delete(model);
+        knockbacks.delete(model);
+        scene3d.removeModel(model);
       }
+    }
+
+    function spawnParticleBurst(model) {
+      // Sample the model's color
+      let color = new THREE.Color(0x666666);
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material?.color) {
+          color = child.material.color.clone();
+        }
+      });
+
+      // Get bounding box to scatter particles within the model's volume
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      const positions = new Float32Array(BURST_PARTICLE_COUNT * 3);
+      const velocities = new Float32Array(BURST_PARTICLE_COUNT * 3);
+
+      for (let i = 0; i < BURST_PARTICLE_COUNT; i++) {
+        const i3 = i * 3;
+        // Start within the model's bounding box
+        positions[i3]     = center.x + (Math.random() - 0.5) * size.x;
+        positions[i3 + 1] = center.y + (Math.random() - 0.5) * size.y;
+        positions[i3 + 2] = center.z + (Math.random() - 0.5) * size.z;
+        // Random outward velocity
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const speed = BURST_SPEED * (0.3 + Math.random() * 0.7);
+        velocities[i3]     = Math.sin(phi) * Math.cos(theta) * speed;
+        velocities[i3 + 1] = Math.sin(phi) * Math.sin(theta) * speed * 0.8 + BURST_SPEED * 0.5;
+        velocities[i3 + 2] = Math.cos(phi) * speed;
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+      const material = new THREE.PointsMaterial({
+        color,
+        size: 4,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+      });
+
+      const points = new THREE.Points(geometry, material);
+      scene3d.scene.add(points);
+      activeBursts.push({ points, velocities, timer: BURST_DURATION });
     }
 
     // Effects update loop (fade-in, projectiles, hit flash)
@@ -630,6 +704,47 @@
       if (shooterEnabled) {
         updateProjectiles(delta);
       }
+      // Knockback — push hit characters away
+      for (const [model, kb] of knockbacks) {
+        kb.timer -= delta;
+        const t = kb.timer / KNOCKBACK_DURATION;
+        const speed = KNOCKBACK_SPEED * t * t; // decelerate
+        model.position.x += kb.dirX * speed * delta;
+        model.position.z += kb.dirZ * speed * delta;
+        if (kb.timer <= 0) {
+          knockbacks.delete(model);
+        }
+      }
+
+      // Particle bursts
+      for (let i = activeBursts.length - 1; i >= 0; i--) {
+        const burst = activeBursts[i];
+        burst.timer -= delta;
+        const positions = burst.points.geometry.attributes.position.array;
+        for (let j = 0; j < positions.length; j += 3) {
+          // Apply velocity
+          positions[j]     += burst.velocities[j] * delta;
+          positions[j + 1] += burst.velocities[j + 1] * delta;
+          positions[j + 2] += burst.velocities[j + 2] * delta;
+          // Gravity
+          burst.velocities[j + 1] -= BURST_GRAVITY * delta;
+          // Floor bounce
+          if (positions[j + 1] < 0) {
+            positions[j + 1] = 0;
+            burst.velocities[j + 1] *= -0.3;
+          }
+        }
+        burst.points.geometry.attributes.position.needsUpdate = true;
+        // Fade out
+        burst.points.material.opacity = Math.max(0, burst.timer / BURST_DURATION);
+        if (burst.timer <= 0) {
+          scene3d.scene.remove(burst.points);
+          burst.points.geometry.dispose();
+          burst.points.material.dispose();
+          activeBursts.splice(i, 1);
+        }
+      }
+
       // Fade-in spawned models
       for (const [model, fade] of fadingInModels) {
         fade.timer += delta;
