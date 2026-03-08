@@ -7,6 +7,8 @@ export type { KakuDiagramOptions } from './core/kaku-diagram.js';
 // Providers
 export { KanjiVGProvider } from './providers/kanjivg-provider.js';
 export type { KanjiVGProviderOptions } from './providers/kanjivg-provider.js';
+export { AnimCJKProvider } from './providers/animcjk-provider.js';
+export type { AnimCJKProviderOptions, AnimCJKLanguage } from './providers/animcjk-provider.js';
 
 // Renderer
 export { SvgRenderer } from './renderer/svg-renderer.js';

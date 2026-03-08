@@ -1,0 +1,36 @@
+<svg id="z12354" class="acjk" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<style>
+<![CDATA[
+@keyframes zk {
+	to {
+		stroke-dashoffset:0;
+	}
+}
+svg.acjk path[clip-path] {
+	--t:0.8s;
+	animation:zk var(--t) linear forwards var(--d);
+	stroke-dasharray:3337;
+	stroke-dashoffset:3339;
+	stroke-width:128;
+	stroke-linecap:round;
+	fill:none;
+	stroke:#000;
+}
+svg.acjk path[id] {fill:#ccc;}
+]]>
+</style>
+<path id="z12354d1" d="M660 211C637 211 616 221 597 232Z"/>
+<path id="z12354d2" d="M334 128C328 130 318 134 320 143Z"/>
+<path id="z12354d3a" d="M559 431C556 431 552 435 555 438Z"/>
+<path id="z12354d3b" d="M602 484C565 485 528 489 492 494Z"/>
+<defs>
+	<clipPath id="z12354c1"><use href="#z12354d1"/></clipPath>
+	<clipPath id="z12354c2"><use href="#z12354d2"/></clipPath>
+	<clipPath id="z12354c3a"><use href="#z12354d3a"/></clipPath>
+	<clipPath id="z12354c3b"><use href="#z12354d3b"/></clipPath>
+</defs>
+<path style="--d:1s;" pathLength="3333" clip-path="url(#z12354c1)" d="M 174,258 251,308 440,306 697,241"/>
+<path style="--d:2s;" pathLength="3333" clip-path="url(#z12354c2)" d="M 331,137 420,185 373,388 367,632 409,728 431,777"/>
+<path style="--d:3s;" pathLength="3333" clip-path="url(#z12354c3a)" d="M 570,440 610,484 460,727 200,836 181,682 342,556 466,514 641,499 754,520 838,606 845,763 703,869 508,922"/>
+<path style="--d:3s;" pathLength="3333" clip-path="url(#z12354c3b)" d="M -170,442 -210,484 -60,727 200,836 181,682 342,556 466,514 641,499 754,520 838,606 845,763 703,869 508,922"/>
+</svg>
