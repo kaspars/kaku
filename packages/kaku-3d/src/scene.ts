@@ -188,14 +188,16 @@ export function createScene(options: SceneOptions): Kaku3DScene {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
   directionalLight.position.set(100, 200, 100);
   directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
+  directionalLight.shadow.mapSize.width = 4096;
+  directionalLight.shadow.mapSize.height = 4096;
   directionalLight.shadow.camera.near = 10;
   directionalLight.shadow.camera.far = 600;
-  directionalLight.shadow.camera.left = -200;
-  directionalLight.shadow.camera.right = 200;
-  directionalLight.shadow.camera.top = 200;
-  directionalLight.shadow.camera.bottom = -200;
+  // Shadow camera covers the full ground area so wandering characters keep shadows
+  directionalLight.shadow.camera.left = -halfGround;
+  directionalLight.shadow.camera.right = halfGround;
+  directionalLight.shadow.camera.top = halfGround;
+  directionalLight.shadow.camera.bottom = -halfGround;
+  directionalLight.shadow.camera.far = halfGround * 2;
   scene.add(directionalLight);
 
   // Controls
