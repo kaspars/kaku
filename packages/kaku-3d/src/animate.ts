@@ -238,7 +238,7 @@ export function createAnimator(options: {
     }
 
     model.rotation.x = style.forwardLean;
-    model.rotation.y = Math.PI + wander.heading;
+    model.rotation.y = wander.heading;
 
     // Stride-synced movement
     const strideProgress = Math.abs(Math.cos(phase));
@@ -303,7 +303,7 @@ export function createAnimator(options: {
         model.rotation.x = 0;
         model.position.y = 0;
         model.scale.setScalar(1);
-        model.rotation.y = Math.PI + leap.heading;
+        model.rotation.y = leap.heading;
 
         if (leap.timer <= 0) {
           // Pick new direction and start turning toward it
@@ -335,7 +335,7 @@ export function createAnimator(options: {
         leap.turnWalkPhase += delta * 2.5;
         const phase = leap.turnWalkPhase * Math.PI * 2;
         model.rotation.z = Math.sin(phase) * 0.06;
-        model.rotation.y = Math.PI + leap.heading;
+        model.rotation.y = leap.heading;
         model.position.y = Math.abs(Math.sin(phase)) * 2;
 
 
@@ -363,7 +363,7 @@ export function createAnimator(options: {
 
         // Lean forward progressively
         model.rotation.x = eased * 0.2;
-        model.rotation.y = Math.PI + leap.heading;
+        model.rotation.y = leap.heading;
         model.rotation.z = 0;
         model.position.y = 0;
 
@@ -407,7 +407,7 @@ export function createAnimator(options: {
 
         // Tilt: lean forward on ascent, lean back slightly on descent
         model.rotation.x = t < 0.5 ? 0.12 * (1 - t * 2) : -0.05 * ((t - 0.5) * 2);
-        model.rotation.y = Math.PI + leap.heading;
+        model.rotation.y = leap.heading;
         model.rotation.z = 0;
 
         // Boundary
