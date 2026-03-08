@@ -22,8 +22,8 @@ export function createSvgElement<K extends keyof SVGElementTagNameMap>(
 /**
  * Create an SVG root element with viewBox
  * @param viewBox - ViewBox as [minX, minY, width, height]
- * @param width - Optional CSS width
- * @param height - Optional CSS height
+ * @param width - CSS width (or size for both dimensions)
+ * @param height - CSS height (defaults to width if omitted)
  * @returns Created SVG element
  */
 export function createSvg(

@@ -3,10 +3,18 @@ import type { Point } from './types.js';
 export interface StrokeInputOptions {
   /** Container element to overlay the canvas on */
   container: HTMLElement;
-  /** Canvas width in CSS pixels */
-  width: number;
-  /** Canvas height in CSS pixels */
-  height: number;
+  /** Canvas size in CSS pixels (square) */
+  size?: number;
+  /**
+   * @deprecated Use `size` instead.
+   * Canvas width in CSS pixels
+   */
+  width?: number;
+  /**
+   * @deprecated Use `size` instead.
+   * Canvas height in CSS pixels
+   */
+  height?: number;
   /** Stroke color for drawing feedback (default: '#333') */
   strokeColor?: string;
   /** Stroke width in CSS pixels (default: 4) */
@@ -40,12 +48,15 @@ export class StrokeInput {
     this.strokeWidth = options.strokeWidth ?? 4;
     this.onStrokeEnd = options.onStrokeEnd;
 
+    const w = options.size ?? options.width ?? 200;
+    const h = options.size ?? options.height ?? 200;
+
     // Create canvas
     this.canvas = document.createElement('canvas');
-    this.canvas.width = options.width * devicePixelRatio;
-    this.canvas.height = options.height * devicePixelRatio;
-    this.canvas.style.width = `${options.width}px`;
-    this.canvas.style.height = `${options.height}px`;
+    this.canvas.width = w * devicePixelRatio;
+    this.canvas.height = h * devicePixelRatio;
+    this.canvas.style.width = `${w}px`;
+    this.canvas.style.height = `${h}px`;
     this.canvas.style.position = 'absolute';
     this.canvas.style.top = '0';
     this.canvas.style.left = '0';

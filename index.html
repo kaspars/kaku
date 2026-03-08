@@ -638,8 +638,7 @@
         const size = getAnimSize();
         return new AnimCJKRenderer({
           container: document.getElementById('canvas'),
-          width: size,
-          height: size,
+          size: size,
         });
       }
       return undefined; // Kaku uses SvgRenderer by default
@@ -688,8 +687,7 @@
         const kakuOptions = {
           provider,
           container: document.getElementById('canvas'),
-          width: size,
-          height: size,
+          size: size,
           strokeColor: '#333',
           strokeWidth: 4,
           showGrid: true,
@@ -837,8 +835,7 @@
         window.diagram = new KakuDiagram({
           provider,
           container: document.getElementById('diagram'),
-          width: diagramSize,
-          height: diagramSize,
+          size: diagramSize,
           strokeColor: '#333',
           strokeWidth: window.diagramProvider === 'kanjivg' ? 3 : undefined,
           showGrid: true,
@@ -921,8 +918,7 @@
       if (window.practiceProvider === 'animcjk') {
         return new AnimCJKRenderer({
           container: document.getElementById('practice-canvas'),
-          width: size,
-          height: size,
+          size: size,
         });
       }
       return undefined;
@@ -975,8 +971,7 @@
         const kakuOptions = {
           provider,
           container: document.getElementById('practice-canvas'),
-          width: size,
-          height: size,
+          size: size,
           strokeColor: '#333',
           strokeWidth: 4,
           showGrid: true,
@@ -1000,8 +995,7 @@
         practiceRen = new KakuRen({
           kaku: practiceKaku,
           container: document.getElementById('practice-canvas'),
-          width: size,
-          height: size,
+          size: size,
           strokeColor: '#333',
           hintColor: '#c44',
           showGuide: false,

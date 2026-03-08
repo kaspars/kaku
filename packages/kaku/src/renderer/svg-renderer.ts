@@ -13,9 +13,17 @@ import { createStrokePath } from './stroke-path.js';
 export interface SvgRendererOptions {
   /** Container element to render into */
   container: HTMLElement;
-  /** Width of the SVG (CSS value) */
+  /** Size of the SVG in pixels (square) */
+  size?: number;
+  /**
+   * @deprecated Use `size` instead.
+   * Width of the SVG (CSS value)
+   */
   width?: number | string;
-  /** Height of the SVG (CSS value) */
+  /**
+   * @deprecated Use `size` instead.
+   * Height of the SVG (CSS value)
+   */
   height?: number | string;
 }
 
@@ -32,8 +40,8 @@ export class SvgRenderer implements Renderer {
 
   constructor(options: SvgRendererOptions) {
     this.container = options.container;
-    this.width = options.width ?? 200;
-    this.height = options.height ?? 200;
+    this.width = options.size ?? options.width ?? 200;
+    this.height = options.size ?? options.height ?? 200;
   }
 
   /**

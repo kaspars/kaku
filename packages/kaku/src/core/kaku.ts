@@ -23,9 +23,17 @@ export interface KakuOptions {
   container: HTMLElement;
   /** Custom renderer (defaults to SvgRenderer) */
   renderer?: Renderer;
-  /** Width of the SVG (CSS value) */
+  /** Size of the SVG in pixels (square) */
+  size?: number;
+  /**
+   * @deprecated Use `size` instead.
+   * Width of the SVG (CSS value)
+   */
   width?: number | string;
-  /** Height of the SVG (CSS value) */
+  /**
+   * @deprecated Use `size` instead.
+   * Height of the SVG (CSS value)
+   */
   height?: number | string;
   /** Stroke color */
   strokeColor?: string;
@@ -57,10 +65,13 @@ export class Kaku {
   constructor(options: KakuOptions) {
     this.provider = options.provider;
 
+    const resolvedWidth = options.size ?? options.width;
+    const resolvedHeight = options.size ?? options.height;
+
     this.renderer = options.renderer ?? new SvgRenderer({
       container: options.container,
-      width: options.width,
-      height: options.height,
+      width: resolvedWidth,
+      height: resolvedHeight,
     });
 
     this.animator = new StrokeAnimator(options.animation);

@@ -8,10 +8,18 @@ export interface KakuRenOptions {
   kaku: Kaku;
   /** Container element (must contain the Kaku SVG) */
   container: HTMLElement;
-  /** Canvas width in CSS pixels */
-  width: number;
-  /** Canvas height in CSS pixels */
-  height: number;
+  /** Canvas size in CSS pixels (square) */
+  size?: number;
+  /**
+   * @deprecated Use `size` instead.
+   * Canvas width in CSS pixels
+   */
+  width?: number;
+  /**
+   * @deprecated Use `size` instead.
+   * Canvas height in CSS pixels
+   */
+  height?: number;
   /** Drawing stroke color (default: '#333') */
   strokeColor?: string;
   /**
@@ -102,8 +110,8 @@ export class KakuRen {
     this.options = options;
     this.kaku = options.kaku;
     this.container = options.container;
-    this.width = options.width;
-    this.height = options.height;
+    this.width = options.size ?? options.width ?? 200;
+    this.height = options.size ?? options.height ?? 200;
     this.morphDuration = options.morphDuration ?? 80;
     this.evaluationOptions = options.evaluation ?? {};
     this.guideColor = options.guideColor ?? '#ddd';
@@ -126,8 +134,8 @@ export class KakuRen {
 
     this.input = new StrokeInput({
       container: options.container,
-      width: options.width,
-      height: options.height,
+      width: this.width,
+      height: this.height,
       strokeColor: options.strokeColor,
       strokeWidth,
       onStrokeEnd: (points) => this.handleStroke(points),

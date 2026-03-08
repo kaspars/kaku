@@ -14,9 +14,17 @@ export interface KakuDiagramOptions {
   provider: DataProvider;
   /** Container element to render diagrams into */
   container: HTMLElement;
-  /** Width of each SVG (CSS value) */
+  /** Size of each SVG in pixels (square) */
+  size?: number;
+  /**
+   * @deprecated Use `size` instead.
+   * Width of each SVG (CSS value)
+   */
   width?: number | string;
-  /** Height of each SVG (CSS value) */
+  /**
+   * @deprecated Use `size` instead.
+   * Height of each SVG (CSS value)
+   */
   height?: number | string;
   /** Stroke color */
   strokeColor?: string;
@@ -49,8 +57,8 @@ export class KakuDiagram {
   constructor(options: KakuDiagramOptions) {
     this.provider = options.provider;
     this.container = options.container;
-    this.width = options.width ?? 109;
-    this.height = options.height ?? 109;
+    this.width = options.size ?? options.width ?? 109;
+    this.height = options.size ?? options.height ?? 109;
     this.renderOptions = {
       strokeColor: options.strokeColor ?? '#000',
       strokeWidth: options.strokeWidth ?? 3,

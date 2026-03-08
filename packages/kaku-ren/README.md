@@ -37,16 +37,14 @@ const container = document.getElementById('canvas');
 const kaku = new Kaku({
   provider,
   container,
-  width: 200,
-  height: 200,
+  size: 200,
   showOutline: true,  // Show faint character outline
 });
 
 const ren = new KakuRen({
   kaku,
   container,
-  width: 200,
-  height: 200,
+  size: 200,
   strokeColor: '#333',
   hintColor: '#c44',
   onAccept(index, result) {
@@ -73,8 +71,7 @@ Works with both KanjiVG and AnimCJK providers — pass the appropriate Kaku inst
 interface KakuRenOptions {
   kaku: Kaku;                // Kaku instance (required)
   container: HTMLElement;    // Container element (required)
-  width: number;             // Canvas width in CSS pixels (required)
-  height: number;            // Canvas height in CSS pixels (required)
+  size?: number;             // Canvas size in CSS pixels (default: 200)
   strokeColor?: string;      // Drawing stroke color (default: '#333')
   strokeWidth?: number;      // Drawing stroke width (auto-computed if omitted)
   hintColor?: string;        // Hint stroke color on rejection (default: '#c44')

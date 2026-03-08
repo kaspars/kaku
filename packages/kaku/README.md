@@ -26,8 +26,7 @@ const provider = new KanjiVGProvider({
 const kaku = new Kaku({
   provider,
   container: document.getElementById('canvas'),
-  width: 200,
-  height: 200,
+  size: 200,
   strokeColor: '#000',
   showGrid: true,
   animation: { strokeDuration: 0.5, loop: false }
@@ -53,10 +52,9 @@ const container = document.getElementById('canvas');
 
 const kaku = new Kaku({
   provider,
-  renderer: new AnimCJKRenderer({ container, width: 200, height: 200 }),
+  renderer: new AnimCJKRenderer({ container, size: 200 }),
   container,
-  width: 200,
-  height: 200,
+  size: 200,
   showOutline: true,
   animation: { strokeDuration: 0.5 }
 });
@@ -78,8 +76,7 @@ interface KakuOptions {
   provider: DataProvider;      // Data provider (required)
   container: HTMLElement;      // Container element (required)
   renderer?: Renderer;         // Custom renderer (default: SvgRenderer)
-  width?: number | string;     // SVG width (default: 200)
-  height?: number | string;    // SVG height (default: 200)
+  size?: number;               // SVG size in pixels (default: 200)
   strokeColor?: string;        // Stroke color (default: '#000')
   strokeWidth?: number;        // Stroke width (default: 3)
   showGrid?: boolean;          // Show grid lines (default: false)
@@ -154,8 +151,7 @@ const provider = new KanjiVGProvider({ basePath: '/kanjivg' });
 const diagram = new KakuDiagram({
   provider,  // Works with KanjiVGProvider or AnimCJKProvider
   container: document.getElementById('diagram'),
-  width: 80,
-  height: 80,
+  size: 80,
   strokeColor: '#333',
   strokeWidth: 3,
   showGrid: true,
@@ -170,8 +166,7 @@ await diagram.load('漢');
 interface KakuDiagramOptions {
   provider: DataProvider;      // Data provider (required)
   container: HTMLElement;      // Container element (required)
-  width?: number | string;     // Per-SVG width (default: 109)
-  height?: number | string;    // Per-SVG height (default: 109)
+  size?: number;               // Per-SVG size in pixels (default: 109)
   strokeColor?: string;        // Stroke color (default: '#000')
   strokeWidth?: number;        // Stroke width (default: 3)
   showGrid?: boolean;          // Show grid lines (default: false)
