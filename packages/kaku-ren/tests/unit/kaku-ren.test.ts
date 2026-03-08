@@ -347,6 +347,33 @@ describe('KakuRen', () => {
 
       expect(ren.enabled).toBe(true);
     });
+
+    it('animates hint with draw effect and custom color', async () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({
+        kaku: kaku as any, container, width: 200, height: 200,
+        hintColor: '#f00',
+        hintDuration: 0.5,
+      });
+
+      const canvas = getCanvas(container);
+      drawStroke(canvas, badStroke());
+      flushRaf();
+
+      // During hint: rendered stroke should have transition set and progress animated
+      const rendered = kaku.getRenderedStrokes()[0];
+      expect(rendered.clearTransition).toHaveBeenCalled();
+      expect(rendered.setTransition).toHaveBeenCalledWith(0.5, 'ease-in-out');
+      expect(rendered.setProgress).toHaveBeenCalledWith(0); // reset to start
+      expect(rendered.setProgress).toHaveBeenCalledWith(1); // animate to end
+      expect(rendered.element.style.stroke).toBe('#f00');
+
+      // After hint completes (500ms + 300ms hold)
+      await vi.advanceTimersByTimeAsync(900);
+
+      // Stroke color should be restored
+      expect(rendered.element.style.stroke).not.toBe('#f00');
+    });
   });
 
   describe('edge cases', () => {

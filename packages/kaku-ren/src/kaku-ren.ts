@@ -33,6 +33,10 @@ export interface KakuRenOptions {
    * Color of guide strokes (default: '#ddd')
    */
   guideColor?: string;
+  /** Color of hint strokes shown on rejection (default: '#c44') */
+  hintColor?: string;
+  /** Duration of hint draw animation in seconds (default: 0.6) */
+  hintDuration?: number;
   /** Called when a stroke is accepted */
   onAccept?: (index: number, result: EvaluationResult) => void;
   /** Called when a stroke is rejected */
@@ -88,6 +92,8 @@ export class KakuRen {
   private readonly morphDuration: number;
   private readonly evaluationOptions: EvaluatorOptions;
   private readonly guideColor: string;
+  private readonly hintColor: string;
+  private readonly hintDuration: number;
   private readonly onAccept?: (index: number, result: EvaluationResult) => void;
   private readonly onReject?: (index: number, result: EvaluationResult) => void;
   private readonly onComplete?: (averageScore: number) => void;
@@ -101,6 +107,8 @@ export class KakuRen {
     this.morphDuration = options.morphDuration ?? 80;
     this.evaluationOptions = options.evaluation ?? {};
     this.guideColor = options.guideColor ?? '#ddd';
+    this.hintColor = options.hintColor ?? '#c44';
+    this.hintDuration = options.hintDuration ?? 0.6;
     this.onAccept = options.onAccept;
     this.onReject = options.onReject;
     this.onComplete = options.onComplete;
@@ -419,7 +427,7 @@ export class KakuRen {
   }
 
   /**
-   * Show a hint by briefly flashing the rendered stroke.
+   * Show a hint by animating the rendered stroke in the correct direction.
    */
   private async showHint(
     strokeIndex: number,
@@ -430,16 +438,34 @@ export class KakuRen {
     const rendered = renderedStrokes[strokeIndex];
     if (!rendered) return;
 
-    // Flash: show the stroke at half opacity, hold, then hide
-    rendered.setOpacity(0.3);
+    const el = rendered.element;
+    const origStroke = el.style.stroke;
+
+    // Set hint color and prepare for draw animation
+    el.style.stroke = this.hintColor;
+    rendered.clearTransition();
+    rendered.setProgress(0);
+    rendered.setOpacity(1);
+
+    // Force reflow so the progress=0 state is committed before transition
+    el.getBoundingClientRect();
+
+    // Animate: draw the stroke from start to end
+    rendered.setTransition(this.hintDuration, 'ease-in-out');
     rendered.setProgress(1);
 
+    const durationMs = this.hintDuration * 1000;
+
+    // Wait for draw animation + brief hold
     await new Promise<void>((resolve) => {
       setTimeout(() => {
+        // Hide and restore
+        rendered.clearTransition();
         rendered.setProgress(0);
         rendered.setOpacity(1);
+        el.style.stroke = origStroke;
         resolve();
-      }, 800);
+      }, durationMs + 300);
     });
   }
 
