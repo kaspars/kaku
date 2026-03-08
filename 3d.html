@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaku 3D</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #000;
+      overflow: hidden;
+    }
+
+    #scene-container {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    #overlay > * {
+      pointer-events: auto;
+    }
+
+    .toolbar-field {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+    }
+
+    #overlay label {
+      color: #ccc;
+      font-size: 0.85rem;
+    }
+
+    #overlay select, #overlay input, #overlay button {
+      padding: 0.3rem 0.5rem;
+      font-size: 0.85rem;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background: #222;
+      color: #eee;
+    }
+
+    #overlay button {
+      cursor: pointer;
+      background: #444;
+    }
+
+    #overlay button:hover {
+      background: #555;
+    }
+
+    #charInput {
+      width: 3rem;
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    #charSelect {
+      font-size: 1rem;
+    }
+
+    #error {
+      color: #f66;
+      font-size: 0.85rem;
+    }
+
+    #instructions {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #aaa;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      z-index: 100;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #888;
+      font-size: 1.2rem;
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <div id="scene-container"></div>
+
+  <div id="overlay">
+    <div class="toolbar-field">
+      <label for="langSelect">Language:</label>
+      <select id="langSelect">
+        <option value="ja" selected>Japanese</option>
+        <option value="zh-hans">Chinese (Simplified)</option>
+        <option value="zh-hant">Chinese (Traditional)</option>
+      </select>
+    </div>
+
+    <div class="toolbar-field">
+      <label for="fontSelect">Font:</label>
+      <select id="fontSelect"></select>
+    </div>
+
+    <div class="toolbar-field">
+      <label for="charSelect">Character:</label>
+      <select id="charSelect"></select>
+    </div>
+
+    <div class="toolbar-field">
+      <label for="charInput">Custom:</label>
+      <input type="text" id="charInput" maxlength="1" value="">
+      <button id="loadBtn">Load</button>
+    </div>
+
+    <div class="toolbar-field">
+      <label for="depthSelect">Depth:</label>
+      <select id="depthSelect">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="40">40</option>
+      </select>
+    </div>
+
+    <div class="toolbar-field">
+      <label for="colorSelect">Color:</label>
+      <select id="colorSelect">
+        <option value="0x333333">Dark gray</option>
+        <option value="0x8B4513">Wood</option>
+        <option value="0xB8860B">Gold</option>
+        <option value="0x2F4F4F">Slate</option>
+        <option value="0x800020">Burgundy</option>
+        <option value="0xFFFFFF">White</option>
+      </select>
+    </div>
+
+    <span id="error"></span>
+  </div>
+
+  <div id="instructions">
+    Arrow keys or WASD to move &middot; Click to look around &middot; Escape to release mouse
+  </div>
+
+  <div id="loading">Loading font...</div>
+
+  <script type="module">
+    import { extrudeCharacter, createScene } from './packages/kaku-3d/src/index.ts';
+
+    // --- Data ---
+
+    const LANG_CONFIG = {
+      ja: {
+        fonts: {
+          'Klee One': 'https://cdn.jsdelivr.net/npm/@fontsource/klee-one/files/klee-one-japanese-400-normal.woff',
+          'Noto Sans JP': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp/files/noto-sans-jp-all-400-normal.woff',
+          'Noto Serif JP': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-jp/files/noto-serif-jp-all-400-normal.woff',
+        },
+        characters: [
+          { char: '漢', label: '漢 (kanji)' },
+          { char: '字', label: '字 (character)' },
+          { char: '日', label: '日 (sun/day)' },
+          { char: '本', label: '本 (origin)' },
+          { char: '語', label: '語 (language)' },
+          { char: '人', label: '人 (person)' },
+          { char: '大', label: '大 (big)' },
+          { char: '山', label: '山 (mountain)' },
+          { char: '川', label: '川 (river)' },
+          { char: '火', label: '火 (fire)' },
+          { char: '水', label: '水 (water)' },
+          { char: '木', label: '木 (tree)' },
+          { char: '金', label: '金 (gold)' },
+          { char: '龍', label: '龍 (dragon)' },
+          { char: 'あ', label: 'あ (hiragana)' },
+          { char: 'カ', label: 'カ (katakana)' },
+        ],
+      },
+      'zh-hans': {
+        fonts: {
+          'Noto Sans SC': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc/files/noto-sans-sc-chinese-simplified-400-normal.woff',
+          'Noto Serif SC': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc/files/noto-serif-sc-chinese-simplified-400-normal.woff',
+        },
+        characters: [
+          { char: '汉', label: '汉 (Chinese)' },
+          { char: '字', label: '字 (character)' },
+          { char: '中', label: '中 (middle)' },
+          { char: '国', label: '国 (country)' },
+          { char: '人', label: '人 (person)' },
+          { char: '大', label: '大 (big)' },
+          { char: '山', label: '山 (mountain)' },
+          { char: '水', label: '水 (water)' },
+          { char: '火', label: '火 (fire)' },
+          { char: '龙', label: '龙 (dragon)' },
+          { char: '爱', label: '爱 (love)' },
+          { char: '学', label: '学 (study)' },
+          { char: '书', label: '书 (book)' },
+          { char: '风', label: '风 (wind)' },
+        ],
+      },
+      'zh-hant': {
+        fonts: {
+          'Noto Sans TC': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tc/files/noto-sans-tc-all-400-normal.woff',
+          'Noto Serif TC': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-tc/files/noto-serif-tc-all-400-normal.woff',
+        },
+        characters: [
+          { char: '漢', label: '漢 (Chinese)' },
+          { char: '字', label: '字 (character)' },
+          { char: '中', label: '中 (middle)' },
+          { char: '國', label: '國 (country)' },
+          { char: '人', label: '人 (person)' },
+          { char: '大', label: '大 (big)' },
+          { char: '山', label: '山 (mountain)' },
+          { char: '水', label: '水 (water)' },
+          { char: '火', label: '火 (fire)' },
+          { char: '龍', label: '龍 (dragon)' },
+          { char: '愛', label: '愛 (love)' },
+          { char: '學', label: '學 (study)' },
+          { char: '書', label: '書 (book)' },
+          { char: '風', label: '風 (wind)' },
+        ],
+      },
+    };
+
+    // --- DOM refs ---
+
+    const langSelect = document.getElementById('langSelect');
+    const fontSelect = document.getElementById('fontSelect');
+    const charSelect = document.getElementById('charSelect');
+    const charInput = document.getElementById('charInput');
+    const loadBtn = document.getElementById('loadBtn');
+    const depthSelect = document.getElementById('depthSelect');
+    const colorSelect = document.getElementById('colorSelect');
+    const errorEl = document.getElementById('error');
+    const loadingEl = document.getElementById('loading');
+
+    // --- Populate dropdowns ---
+
+    function populateFonts() {
+      const config = LANG_CONFIG[langSelect.value];
+      fontSelect.innerHTML = '';
+      for (const name of Object.keys(config.fonts)) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        fontSelect.appendChild(opt);
+      }
+    }
+
+    function populateCharacters() {
+      const config = LANG_CONFIG[langSelect.value];
+      charSelect.innerHTML = '';
+      for (const { char, label } of config.characters) {
+        const opt = document.createElement('option');
+        opt.value = char;
+        opt.textContent = label;
+        charSelect.appendChild(opt);
+      }
+    }
+
+    function onLanguageChange() {
+      populateFonts();
+      populateCharacters();
+      charInput.value = '';
+      loadCharacter();
+    }
+
+    // --- Scene ---
+
+    const scene3d = createScene({
+      container: document.getElementById('scene-container'),
+      eyeHeight: 60,
+      cameraDistance: 150,
+    });
+    scene3d.start();
+
+    // --- Load character ---
+
+    function getActiveChar() {
+      const custom = charInput.value.trim();
+      return custom || charSelect.value;
+    }
+
+    function getFontUrl() {
+      const config = LANG_CONFIG[langSelect.value];
+      return config.fonts[fontSelect.value];
+    }
+
+    async function loadCharacter() {
+      const char = getActiveChar();
+      if (!char) return;
+
+      errorEl.textContent = '';
+
+      try {
+        loadingEl.style.display = 'block';
+        loadingEl.textContent = 'Loading...';
+
+        const depth = parseInt(depthSelect.value, 10);
+        const color = parseInt(colorSelect.value, 16);
+
+        scene3d.clearModels();
+
+        const model = await extrudeCharacter(char, getFontUrl(), {
+          depth,
+          color,
+          bevel: true,
+        });
+
+        model.position.y = 50;
+        scene3d.addModel(model);
+
+        loadingEl.style.display = 'none';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        loadingEl.style.display = 'none';
+        console.error('Load error:', err);
+      }
+    }
+
+    // --- Event listeners ---
+
+    langSelect.addEventListener('change', onLanguageChange);
+    fontSelect.addEventListener('change', loadCharacter);
+    charSelect.addEventListener('change', () => {
+      charInput.value = '';
+      loadCharacter();
+    });
+    loadBtn.addEventListener('click', loadCharacter);
+    charInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadCharacter();
+    });
+    depthSelect.addEventListener('change', loadCharacter);
+    colorSelect.addEventListener('change', loadCharacter);
+
+    // --- Init ---
+
+    populateFonts();
+    populateCharacters();
+    loadCharacter();
+  </script>
+</body>
+</html>

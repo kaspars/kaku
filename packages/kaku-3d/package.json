@@ -1,0 +1,50 @@
+{
+  "name": "@kaspars/kaku-3d",
+  "version": "1.0.0",
+  "description": "3D extruded CJK character models using Three.js",
+  "type": "module",
+  "main": "./dist/kaku-3d.cjs",
+  "module": "./dist/kaku-3d.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/kaku-3d.js",
+      "require": "./dist/kaku-3d.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "opentype.js": "^1.3.4"
+  },
+  "peerDependencies": {
+    "three": ">=0.150.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "three": "^0.170.0"
+  },
+  "keywords": [
+    "cjk",
+    "kanji",
+    "3d",
+    "three.js",
+    "extrude",
+    "webgl"
+  ],
+  "author": "Kaspars Bankovskis <kaspars@bankovskis.net>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaspars/kaku.git",
+    "directory": "packages/kaku-3d"
+  }
+}

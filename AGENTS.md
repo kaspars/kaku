@@ -8,6 +8,7 @@ Monorepo for CJK character stroke libraries. Uses npm workspaces.
 |---------|------|-------------|
 | kaku | `packages/kaku/` | Stroke animation (SVG + CSS transitions) |
 | kaku-ren | `packages/kaku-ren/` | Stroke practice (canvas input + evaluation) |
+| kaku-3d | `packages/kaku-3d/` | 3D extruded characters (Three.js + opentype.js) |
 
 kaku-ren depends on kaku. kaku is standalone.
 
@@ -30,6 +31,7 @@ See `docs/kanjivg.md` and `docs/animcjk.md` for detailed format documentation.
 ├── package.json            # Workspace root
 ├── vite.config.ts          # Dev server for demo
 ├── index.html              # Unified demo page (tabs for animation + practice)
+├── 3d.html                 # 3D character viewer demo
 ├── docs/                   # Data source documentation
 │   ├── kanjivg.md
 │   └── animcjk.md
@@ -37,9 +39,15 @@ See `docs/kanjivg.md` and `docs/animcjk.md` for detailed format documentation.
 │   ├── kaku/               # Animation library
 │   │   ├── AGENTS.md       # Detailed architecture
 │   │   └── ...
-│   └── kaku-ren/           # Practice library
-│       ├── AGENTS.md       # Detailed architecture
-│       └── ...
+│   ├── kaku-ren/           # Practice library
+│   │   ├── AGENTS.md       # Detailed architecture
+│   │   └── ...
+│   └── kaku-3d/            # 3D character extrusion
+│       └── src/
+│           ├── font-shapes.ts    # opentype.js glyph → Three.js shapes
+│           ├── extrude-model.ts  # Shape extrusion + centering/scaling
+│           ├── scene.ts          # Ground plane, lighting, fog
+│           └── controls.ts       # First-person camera controls
 ```
 
 ## Commands
@@ -60,3 +68,8 @@ npm run build            # Build all packages
 - Single demo page with tabs for both packages
 - Data is fetched remotely (raw.githubusercontent.com) — no bundled SVGs
 - AnimCJK uses a dedicated renderer (`AnimCJKRenderer`) that embeds native SVG with clip-path animation; KanjiVG uses the default `SvgRenderer`
+- kaku-3d uses opentype.js to extract glyph outlines from CJK fonts (Noto Sans/Serif, Klee One), converts to Three.js shapes, and extrudes with `ExtrudeGeometry`
+
+## Known Issues
+
+- **Chinese Traditional 國 renders as solid block**: The 國 (U+570B) glyph in both Noto Sans TC and Noto Serif TC renders without the inner hole — the enclosed space of the 囗 radical is filled solid instead of being transparent. Other enclosed characters (圖, 關, 園) render correctly. Likely a contour winding issue specific to this glyph that causes `ShapePath.toShapes()` to misidentify the inner contour. Needs investigation.
