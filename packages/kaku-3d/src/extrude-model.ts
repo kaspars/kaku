@@ -54,10 +54,12 @@ export async function extrudeCharacter(
     group.add(mesh);
   }
 
-  // Center the group
+  // Center horizontally, align bottom to y=0
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
-  group.position.sub(center);
+  group.position.x -= center.x;
+  group.position.z -= center.z;
+  group.position.y -= box.min.y; // bottom sits at y=0
 
   // Scale to target size
   const size = box.getSize(new THREE.Vector3());

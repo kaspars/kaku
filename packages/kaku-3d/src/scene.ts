@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { SceneOptions } from './types.js';
 import { createFirstPersonControls, type FirstPersonControls, type Obstacle } from './controls.js';
+import { createAnimator, type CharacterAnimator, type AnimationEffect } from './animate.js';
 
 export interface Kaku3DScene {
   /** The Three.js scene */
@@ -11,8 +12,12 @@ export interface Kaku3DScene {
   renderer: THREE.WebGLRenderer;
   /** First-person controls */
   controls: FirstPersonControls;
+  /** Character animator */
+  animator: CharacterAnimator;
   /** Add a model to the scene at a position */
   addModel(model: THREE.Group, position?: THREE.Vector3): void;
+  /** Set the animation effect for the current model */
+  setEffect(effect: AnimationEffect): void;
   /** Remove all character models */
   clearModels(): void;
   /** Start the render loop */
@@ -202,6 +207,10 @@ export function createScene(options: SceneOptions): Kaku3DScene {
   });
   controls.setBounds(halfGround);
 
+  // Animator
+  const animator = createAnimator({ boundsHalfSize: halfGround });
+  let currentEffect: AnimationEffect = 'static';
+
   // Model tracking
   const models: THREE.Group[] = [];
 
@@ -229,6 +238,9 @@ export function createScene(options: SceneOptions): Kaku3DScene {
     animationId = requestAnimationFrame(animate);
     const delta = clock.getDelta();
     controls.update(delta);
+    animator.update(delta);
+    // Update obstacle positions after animation moves models
+    updateObstacles();
     renderer.render(scene, camera);
   }
 
@@ -247,6 +259,7 @@ export function createScene(options: SceneOptions): Kaku3DScene {
     camera,
     renderer,
     controls,
+    animator,
 
     addModel(model: THREE.Group, position?: THREE.Vector3) {
       if (position) {
@@ -254,7 +267,15 @@ export function createScene(options: SceneOptions): Kaku3DScene {
       }
       scene.add(model);
       models.push(model);
+      animator.setModel(model, currentEffect);
       updateObstacles();
+    },
+
+    setEffect(effect: AnimationEffect) {
+      currentEffect = effect;
+      if (models.length > 0) {
+        animator.setModel(models[models.length - 1], effect);
+      }
     },
 
     clearModels() {
@@ -272,6 +293,7 @@ export function createScene(options: SceneOptions): Kaku3DScene {
         });
       }
       models.length = 0;
+      animator.setModel(null, currentEffect);
       updateObstacles();
     },
 
@@ -293,6 +315,7 @@ export function createScene(options: SceneOptions): Kaku3DScene {
       this.stop();
       this.clearModels();
       controls.dispose();
+      animator.dispose();
       window.removeEventListener('resize', onResize);
       renderer.dispose();
       if (renderer.domElement.parentNode) {

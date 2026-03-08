@@ -138,6 +138,15 @@
     </div>
 
     <div class="toolbar-field">
+      <label for="effectSelect">Effect:</label>
+      <select id="effectSelect">
+        <option value="static">Static</option>
+        <option value="wandering">Wandering</option>
+        <option value="jumpy">Jumpy</option>
+      </select>
+    </div>
+
+    <div class="toolbar-field">
       <label for="depthSelect">Depth:</label>
       <select id="depthSelect">
         <option value="5">5</option>
@@ -252,6 +261,7 @@
     const charSelect = document.getElementById('charSelect');
     const charInput = document.getElementById('charInput');
     const loadBtn = document.getElementById('loadBtn');
+    const effectSelect = document.getElementById('effectSelect');
     const depthSelect = document.getElementById('depthSelect');
     const colorSelect = document.getElementById('colorSelect');
     const errorEl = document.getElementById('error');
@@ -330,7 +340,8 @@
           bevel: true,
         });
 
-        model.position.y = 50;
+        model.position.y = 0;
+        scene3d.setEffect(effectSelect.value);
         scene3d.addModel(model);
 
         loadingEl.style.display = 'none';
@@ -352,6 +363,9 @@
     loadBtn.addEventListener('click', loadCharacter);
     charInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') loadCharacter();
+    });
+    effectSelect.addEventListener('change', () => {
+      scene3d.setEffect(effectSelect.value);
     });
     depthSelect.addEventListener('change', loadCharacter);
     colorSelect.addEventListener('change', loadCharacter);
