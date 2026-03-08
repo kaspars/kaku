@@ -259,12 +259,42 @@ export function createAnimator(options: {
     }
   }
 
+  const COLLISION_RADIUS = 60;
+
+  function resolveCollisions() {
+    for (let i = 0; i < entries.length; i++) {
+      const a = entries[i];
+      if (!a.wander) continue;
+      for (let j = i + 1; j < entries.length; j++) {
+        const b = entries[j];
+        if (!b.wander) continue;
+        const dx = a.model.position.x - b.model.position.x;
+        const dz = a.model.position.z - b.model.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < COLLISION_RADIUS && dist > 0) {
+          // Push apart equally
+          const overlap = (COLLISION_RADIUS - dist) / 2;
+          const nx = dx / dist;
+          const nz = dz / dist;
+          a.model.position.x += nx * overlap;
+          a.model.position.z += nz * overlap;
+          b.model.position.x -= nx * overlap;
+          b.model.position.z -= nz * overlap;
+          // Steer away from each other
+          a.wander.targetHeading = Math.atan2(nx, nz);
+          b.wander.targetHeading = Math.atan2(-nx, -nz);
+        }
+      }
+    }
+  }
+
   return {
     update(delta: number) {
       if (effect === 'static') return;
       for (const entry of entries) {
         updateEntry(entry, delta);
       }
+      resolveCollisions();
     },
 
     addModel(model: THREE.Group, eff: AnimationEffect) {
