@@ -20,7 +20,100 @@ Kaku Ren adds interactive stroke practice on top of Kaku's animation engine:
 2. Captures mouse/touch/pointer input as the user draws strokes
 3. Evaluates each stroke against the expected path (shape, length, direction)
 4. Morphs accepted strokes into the correct form
-5. Shows animated hints on incorrect attempts
+5. Shows animated hints on incorrect attempts (draw animation in hint color)
+
+## Quick Start
+
+```typescript
+import { Kaku, KanjiVGProvider } from '@kaspars/kaku';
+import { KakuRen } from '@kaspars/kaku-ren';
+
+const provider = new KanjiVGProvider({
+  basePath: 'https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji'
+});
+
+const container = document.getElementById('canvas');
+
+const kaku = new Kaku({
+  provider,
+  container,
+  width: 200,
+  height: 200,
+  showOutline: true,  // Show faint character outline
+});
+
+const ren = new KakuRen({
+  kaku,
+  container,
+  width: 200,
+  height: 200,
+  strokeColor: '#333',
+  hintColor: '#c44',
+  onAccept(index, result) {
+    console.log(`Stroke ${index + 1} accepted (${Math.round(result.score * 100)}%)`);
+  },
+  onReject(index, result) {
+    console.log(`Stroke ${index + 1} rejected: ${result.rejection}`);
+  },
+  onComplete(averageScore) {
+    console.log(`Done! Average score: ${Math.round(averageScore * 100)}%`);
+  },
+});
+
+await kaku.load('漢');
+```
+
+Works with both KanjiVG and AnimCJK providers — pass the appropriate Kaku instance.
+
+## API
+
+### Constructor Options
+
+```typescript
+interface KakuRenOptions {
+  kaku: Kaku;                // Kaku instance (required)
+  container: HTMLElement;    // Container element (required)
+  width: number;             // Canvas width in CSS pixels (required)
+  height: number;            // Canvas height in CSS pixels (required)
+  strokeColor?: string;      // Drawing stroke color (default: '#333')
+  strokeWidth?: number;      // Drawing stroke width (auto-computed if omitted)
+  hintColor?: string;        // Hint stroke color on rejection (default: '#c44')
+  hintDuration?: number;     // Hint draw animation duration in seconds (default: 0.6)
+  morphDuration?: number;    // Morph animation duration in ms (default: 80)
+  evaluation?: EvaluatorOptions;  // Evaluation tuning
+  onAccept?: (index: number, result: EvaluationResult) => void;
+  onReject?: (index: number, result: EvaluationResult) => void;
+  onComplete?: (averageScore: number) => void;
+}
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `currentStroke` | `number` | Current stroke index |
+| `totalStrokes` | `number` | Total number of strokes |
+| `averageScore` | `number` | Average score across all strokes |
+| `allScores` | `readonly number[]` | All scores so far |
+| `enabled` | `boolean` | Enable/disable drawing input |
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `reset(): void` | Reset practice state (scores and strokes) |
+| `refresh(): void` | Refresh overlay after loading a new character |
+| `dispose(): void` | Clean up resources |
+
+### EvaluationResult
+
+```typescript
+interface EvaluationResult {
+  accepted: boolean;
+  score: number;             // 0-1, higher is better
+  rejection?: 'too-short' | 'wrong-direction' | 'low-score';
+}
+```
 
 ## License
 

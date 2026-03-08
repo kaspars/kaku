@@ -9,35 +9,36 @@ Kaku is a TypeScript library for animating CJK (Chinese/Japanese/Korean) charact
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                         Kaku                            │
-│                (Animated Stroke Display)                │
-├─────────────────────────────────────────────────────────┤
-│                         │                               │
-│   ┌──────────────┐      │      ┌───────────────────┐    │
-│   │ DataProvider │──────┼─────▶│   SvgRenderer     │    │
-│   │  (KanjiVG)   │      │      │  (creates paths)  │    │
-│   └──────────────┘      │      └───────────────────┘    │
-│                         │              │                │
-│                         │              ▼                │
-│                         │      ┌───────────────────┐    │
-│                         └─────▶│  StrokeAnimator   │    │
-│                                │ (CSS transitions) │    │
-│                                └───────────────────┘    │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                          Kaku                            │
+│                 (Animated Stroke Display)                │
+├──────────────────────────────────────────────────────────┤
+│                          │                               │
+│   ┌───────────────────┐  │  ┌──────────────────────┐     │
+│   │   DataProvider    │──┼─▶│     Renderer         │     │
+│   │ KanjiVG / AnimCJK │  │  │ SvgRenderer (default)│     │
+│   └───────────────────┘  │  │ AnimCJKRenderer      │     │
+│                          │  └──────────────────────┘     │
+│                          │           │                   │
+│                          │           ▼                   │
+│                          │  ┌──────────────────────┐     │
+│                          └─▶│   StrokeAnimator     │     │
+│                             │  (CSS transitions)   │     │
+│                             └──────────────────────┘     │
+└──────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────┐
-│                      KakuDiagram                        │
-│             (Static Stroke Order Diagrams)              │
-├─────────────────────────────────────────────────────────┤
-│                         │                               │
-│   ┌──────────────┐      │      ┌───────────────────┐    │
-│   │ DataProvider │──────┼─────▶│  N × SVG Elements │    │
-│   │  (KanjiVG)   │      │      │ (cumulative view) │    │
-│   └──────────────┘      │      └───────────────────┘    │
-│                                                         │
-│   Output: SVG₁(stroke 1), SVG₂(1-2), ... SVGₙ(all)      │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                       KakuDiagram                        │
+│              (Static Stroke Order Diagrams)              │
+├──────────────────────────────────────────────────────────┤
+│                          │                               │
+│   ┌───────────────────┐  │  ┌──────────────────────┐     │
+│   │   DataProvider    │──┼─▶│  N x SVG Elements    │     │
+│   │ KanjiVG / AnimCJK │  │  │  (cumulative view)   │     │
+│   └───────────────────┘  │  └──────────────────────┘     │
+│                                                          │
+│   Output: SVG1(stroke 1), SVG2(1-2), ... SVGn(all)       │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## Key Files
@@ -47,7 +48,9 @@ Kaku is a TypeScript library for animating CJK (Chinese/Japanese/Korean) charact
 | `src/core/kaku.ts` | Main API class, orchestrates animation components |
 | `src/core/kaku-diagram.ts` | Renders stroke order diagrams as multiple SVGs |
 | `src/providers/kanjivg-provider.ts` | Fetches and parses KanjiVG SVG files |
-| `src/renderer/svg-renderer.ts` | Creates SVG DOM elements |
+| `src/providers/animcjk-provider.ts` | Fetches and parses AnimCJK SVG files |
+| `src/renderer/svg-renderer.ts` | Default renderer for KanjiVG (creates SVG paths) |
+| `src/renderer/animcjk-renderer.ts` | Renderer for AnimCJK (embeds native SVG with clip-path) |
 | `src/renderer/stroke-path.ts` | Wraps path elements with animation methods |
 | `src/animator/stroke-animator.ts` | Controls animation timing and state |
 | `src/types/` | TypeScript interfaces |
@@ -96,18 +99,24 @@ Strokes appear instantly with no animation, but still respect `strokeDuration` a
 6. Animator receives rendered strokes
 7. User calls `play()` to start animation
 
-## KanjiVG Format
+## Data Providers
 
-KanjiVG files have paths with specific ID patterns:
+Two providers are available. See `docs/kanjivg.md` and `docs/animcjk.md` for detailed format docs.
 
-```xml
-<path id="kvg:06f22-s1" kvg:type="㇐" d="M10,50 L100,50"/>
-<path id="kvg:06f22-s2" kvg:type="㇑" d="M50,10 L50,100"/>
-```
+### KanjiVG
 
-- IDs follow pattern `kvg:{hex}-s{number}`
-- `kvg:type` indicates stroke type
-- Strokes are sorted by the `-s{N}` suffix
+- 109x109 viewBox, hex codepoint filenames (`05b57.svg`)
+- Single Bezier path per stroke, uses default `SvgRenderer`
+- Covers Japanese kanji + kana
+
+### AnimCJK
+
+- 1024x1024 viewBox, decimal codepoint filenames (`23383.svg`)
+- Dual-path model: shape outlines (clip regions) + direction polylines (animation)
+- Requires `AnimCJKRenderer` which embeds the native SVG and controls strokes via `stroke-dashoffset` on polylines clipped to shape outlines
+- Stores `rawSvg` on `CharacterData` for the renderer
+- Multi-part strokes grouped by shared `--d` CSS delay value
+- Covers Japanese, Chinese (simplified/traditional), Korean
 
 ## State Machine
 
@@ -152,8 +161,16 @@ npm run test:coverage # Coverage report
 
 1. Create `src/providers/my-provider.ts`
 2. Implement `DataProvider` interface
-3. Export from `src/index.ts`
-4. Add tests in `tests/unit/my-provider.test.ts`
+3. If the data format needs custom rendering, create a `Renderer` implementation
+4. Export from `src/index.ts`
+5. Add tests in `tests/unit/my-provider.test.ts`
+
+### Adding a New Renderer
+
+1. Create `src/renderer/my-renderer.ts`
+2. Implement `Renderer` interface (render, getSvg, clear, dispose)
+3. Return `RenderedStroke` objects with setProgress/setOpacity/setTransition methods
+4. Export from `src/index.ts`
 
 ### Adding Animation Events
 

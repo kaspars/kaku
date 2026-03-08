@@ -14,30 +14,53 @@ npm install @kaspars/kaku
 
 ## Quick Start
 
+### With KanjiVG (Japanese kanji and kana)
+
 ```typescript
 import { Kaku, KanjiVGProvider } from '@kaspars/kaku';
 
-// Create provider pointing to KanjiVG SVG files
 const provider = new KanjiVGProvider({
-  basePath: '/path/to/kanjivg'
+  basePath: 'https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji'
 });
 
-// Create Kaku instance
 const kaku = new Kaku({
   provider,
   container: document.getElementById('canvas'),
   width: 200,
   height: 200,
   strokeColor: '#000',
-  strokeWidth: 3,
   showGrid: true,
-  animation: {
-    strokeDuration: 0.5,
-    loop: false
-  }
+  animation: { strokeDuration: 0.5, loop: false }
 });
 
-// Load and animate a character
+await kaku.load('漢');
+kaku.play();
+```
+
+### With AnimCJK (Japanese, Chinese, Korean)
+
+AnimCJK requires its own renderer to display calligraphic stroke shapes:
+
+```typescript
+import { Kaku, AnimCJKProvider, AnimCJKRenderer } from '@kaspars/kaku';
+
+const provider = new AnimCJKProvider({
+  basePath: 'https://raw.githubusercontent.com/parsimonhi/animCJK/master',
+  language: 'ja'  // 'ja' | 'zh-Hans' | 'zh-Hant' | 'ko'
+});
+
+const container = document.getElementById('canvas');
+
+const kaku = new Kaku({
+  provider,
+  renderer: new AnimCJKRenderer({ container, width: 200, height: 200 }),
+  container,
+  width: 200,
+  height: 200,
+  showOutline: true,
+  animation: { strokeDuration: 0.5 }
+});
+
 await kaku.load('漢');
 kaku.play();
 ```
@@ -54,12 +77,15 @@ Main class that orchestrates character loading, rendering, and animation.
 interface KakuOptions {
   provider: DataProvider;      // Data provider (required)
   container: HTMLElement;      // Container element (required)
+  renderer?: Renderer;         // Custom renderer (default: SvgRenderer)
   width?: number | string;     // SVG width (default: 200)
   height?: number | string;    // SVG height (default: 200)
   strokeColor?: string;        // Stroke color (default: '#000')
   strokeWidth?: number;        // Stroke width (default: 3)
   showGrid?: boolean;          // Show grid lines (default: false)
   gridColor?: string;          // Grid line color (default: '#ccc')
+  showOutline?: boolean;       // Show faint character outline (default: false)
+  outlineColor?: string;       // Outline color (default: '#ccc')
   animation?: AnimatorOptions; // Animation options
 }
 
@@ -91,7 +117,8 @@ interface AnimatorOptions {
 | `previousStroke(): void` | Go back one stroke (manual mode) |
 | `on(event, handler): () => void` | Subscribe to events, returns unsubscribe function |
 | `getSvg(): SVGSVGElement` | Get the SVG element |
-| `getCharacterData(): CharacterData | null` | Get loaded character data |
+| `getCharacterData(): CharacterData \| null` | Get loaded character data |
+| `getRenderedStrokes(): RenderedStroke[]` | Get rendered stroke objects for external control |
 | `dispose(): void` | Clean up resources |
 
 #### Properties
@@ -162,16 +189,34 @@ interface KakuDiagramOptions {
 | `clear(): void` | Remove all rendered SVGs |
 | `dispose(): void` | Clean up resources |
 
-### KanjiVGProvider
+### Providers
 
-Data provider for KanjiVG stroke data.
+#### KanjiVGProvider
+
+Data provider for [KanjiVG](http://kanjivg.tagaini.net/) stroke data. Covers Japanese kanji, hiragana, and katakana.
 
 ```typescript
 const provider = new KanjiVGProvider({
-  basePath: 'https://example.com/kanjivg',  // Base URL to SVG files
+  basePath: 'https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji',
   fetch: customFetch  // Optional custom fetch function
 });
 ```
+
+Uses the default `SvgRenderer`. Files are named by hex codepoint (`05b57.svg`) with a 109x109 viewBox.
+
+#### AnimCJKProvider
+
+Data provider for [AnimCJK](https://github.com/parsimonhi/animCJK) stroke data. Covers Japanese, Chinese (simplified and traditional), and Korean.
+
+```typescript
+const provider = new AnimCJKProvider({
+  basePath: 'https://raw.githubusercontent.com/parsimonhi/animCJK/master',
+  language: 'ja',     // 'ja' | 'zh-Hans' | 'zh-Hant' | 'ko'
+  fetch: customFetch   // Optional custom fetch function
+});
+```
+
+Requires `AnimCJKRenderer` to display calligraphic stroke shapes. Files are named by decimal codepoint (`23383.svg`) with a 1024x1024 viewBox. Japanese falls back from `svgsJa/` to `svgsJaKana/` for kana characters.
 
 ### CharacterData
 
@@ -184,6 +229,7 @@ interface CharacterData {
   viewBox: [number, number, number, number];
   strokes: Stroke[];
   source: string;
+  rawSvg?: string;  // Present for AnimCJK (used by AnimCJKRenderer)
 }
 
 interface Stroke {

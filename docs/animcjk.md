@@ -136,54 +136,47 @@ Fields include: grade set, definition, kun/on readings (Japanese), radical, and 
 | Stroke type metadata | `kvg:type` attribute | Not provided |
 | Radical decomposition | Nested `<g>` groups with metadata | Flat structure (decomposition in dictionary files) |
 
-### Provider Design Considerations
+### Provider: `AnimCJKProvider`
 
-An `AnimCJKProvider` would need to:
+The provider (`packages/kaku/src/providers/animcjk-provider.ts`) handles:
 
-1. **Convert codepoints to decimal** for file URLs (not hex like KanjiVG)
-2. **Select the correct subdirectory** based on the target language:
-   - Japanese: `svgsJa/` (kanji) + `svgsJaKana/` (kana)
+1. **Decimal codepoint file URLs** (not hex like KanjiVG)
+2. **Language-based subdirectory selection**:
+   - Japanese: `svgsJa/` (kanji), falls back to `svgsJaKana/` (kana)
    - Simplified Chinese: `svgsZhHans/`
    - Traditional Chinese: `svgsZhHant/`
    - Korean: `svgsKo/`
-3. **Return the raw SVG content** for Kaku to embed directly
-4. **Parse the direction polylines** (paths with `clip-path` attribute) for stroke metadata
-5. **Group multi-part strokes** by base number (e.g., `d3a` + `d3b` = stroke 3) — these share the same `--d` delay value
+3. **Storing the raw SVG** on `CharacterData.rawSvg` for the renderer
+4. **Parsing direction polylines** (paths with `clip-path` attribute) for stroke metadata
+5. **Grouping multi-part strokes** by `--d` CSS delay value (e.g., paths sharing `--d:3s` form one stroke)
 
-### Animation Approach: Wrapping Native SVGs
+### Renderer: `AnimCJKRenderer`
 
-AnimCJK SVGs are self-animating — they contain embedded CSS keyframes that animate strokes via `stroke-dashoffset` on clipped polylines. Rather than reimplementing this animation, Kaku acts as a thin wrapper:
+The renderer (`packages/kaku/src/renderer/animcjk-renderer.ts`) embeds the native AnimCJK SVG and controls strokes via JavaScript:
 
-**Animated playback**: Embed the SVG as-is. The embedded CSS handles the animation automatically. Kaku can control timing by overriding the `--t` (duration) and `--d` (delay) custom properties.
+1. Parses `rawSvg` and strips the embedded `<style>` block
+2. Injects control CSS:
+   - Shape paths (`path[id]`): `fill: none` (or `fill: outlineColor` when `showOutline` is true)
+   - Stroke paths (`path[clip-path]`): colored, stroke-width 128, hidden via `stroke-dashoffset`
+3. Groups stroke paths by `--d` delay, creates `RenderedStroke` wrappers
+4. Each `RenderedStroke` controls `stroke-dashoffset` for draw animation:
+   - `setProgress(0)` = fully hidden (dashoffset = pathLength)
+   - `setProgress(1)` = fully revealed (dashoffset = 0)
+   - Multi-part strokes animate all parts together
 
-**Step-by-step mode**: AnimCJK's own [card demo](https://github.com/parsimonhi/animCJK/blob/master/samples/card.html) demonstrates this approach:
+This integrates with the existing `StrokeAnimator` — all three stroke effects (draw, fade, none) work with AnimCJK strokes.
 
-1. Strip the embedded `<style>` block from the SVG
-2. Apply external CSS that starts all stroke paths as transparent:
-   ```css
-   svg.acjk path[id]      { fill: #ccc; }         /* shape outlines: grey */
-   svg.acjk path:not([id]) { stroke: transparent; } /* stroke paths: hidden */
-   ```
-3. Toggle visibility by adding a `visible` class to individual stroke paths:
-   ```css
-   svg.acjk path.visible:not([id]) { stroke: #000; }
-   ```
-4. Track a `lastShown` counter — strokes with index < lastShown get `class="visible"`
+### Practice (kaku-ren)
 
-This enables `nextStroke()` / `previousStroke()` / `reset()` with zero animation logic — just CSS class toggling. The stroke paths already have `clip-path` set, so making a stroke visible instantly reveals its full calligraphic shape through the clip region.
-
-**Hybrid approach**: For animated step-by-step (where each stroke draws progressively), selectively enable the CSS animation on individual stroke paths while keeping others either hidden or fully revealed.
-
-### Practice (kaku-ren) Considerations
-
-For stroke evaluation in kaku-ren, the **direction polylines** are the relevant paths:
+For stroke evaluation in kaku-ren, the **direction polylines** are used:
 
 - They define the natural writing direction (start point, end point, trajectory)
 - They are simple `M`/`L` polylines, so point sampling is trivial (no Bezier math needed)
-- The evaluation logic (resample, compare, check direction) works the same way
-- The `1024 x 1024` viewBox just changes the scale factor: `scaleFactor = canvasWidth / 1024`
+- The evaluation logic (resample, compare, check direction) works identically to KanjiVG
+- The `1024 x 1024` viewBox changes only the scale factor: `scaleFactor = canvasWidth / 1024`
+- Multi-part strokes are evaluated as a single stroke (concatenated polylines)
 
-Multi-part strokes should be evaluated as a single stroke by concatenating the direction polylines.
+For rejection hints, `getRenderedStrokes()` provides access to the calligraphic shapes — the hint animates the draw effect on the actual rendered stroke (not the raw polyline), showing the correct direction in the full calligraphic form.
 
 ## License
 
