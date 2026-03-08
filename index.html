@@ -565,17 +565,7 @@
       ).join('');
     }
 
-    // Create diagram (KanjiVG only for now — AnimCJK diagram support would need separate work)
-    window.diagram = new KakuDiagram({
-      provider: kanjivgProvider,
-      container: document.getElementById('diagram'),
-      width: 80,
-      height: 80,
-      strokeColor: '#333',
-      strokeWidth: 3,
-      showGrid: true,
-      gridColor: '#e0e0e0',
-    });
+    window.diagram = null;
 
     function updateStatus() {
       document.getElementById('state').textContent = kaku?.state || 'idle';
@@ -630,15 +620,19 @@
         await kaku.load(char);
         updateStatus();
 
-        // Diagram only works with KanjiVG provider
-        if (window.currentProvider === 'kanjivg') {
-          document.getElementById('diagram').style.display = '';
-          document.querySelector('#tab-animation h2').style.display = '';
-          await window.diagram.load(char);
-        } else {
-          document.getElementById('diagram').style.display = 'none';
-          document.querySelector('#tab-animation h2').style.display = 'none';
-        }
+        // Recreate diagram with current provider
+        if (window.diagram) window.diagram.dispose();
+        window.diagram = new KakuDiagram({
+          provider,
+          container: document.getElementById('diagram'),
+          width: 80,
+          height: 80,
+          strokeColor: '#333',
+          strokeWidth: window.currentProvider === 'kanjivg' ? 3 : undefined,
+          showGrid: true,
+          gridColor: '#e0e0e0',
+        });
+        await window.diagram.load(char);
 
       } catch (err) {
         document.getElementById('error').textContent = err.message;

@@ -149,22 +149,31 @@ export class KakuDiagram {
   private renderDiagrams(): void {
     if (!this.characterData) return;
 
+    if (this.characterData.rawSvg) {
+      this.renderAnimCJKDiagrams();
+    } else {
+      this.renderPathDiagrams();
+    }
+  }
+
+  /**
+   * Render diagrams for KanjiVG-style data (stroke paths as Bezier curves)
+   */
+  private renderPathDiagrams(): void {
+    if (!this.characterData) return;
+
     const { strokes, viewBox } = this.characterData;
     const [, , vbW, vbH] = viewBox;
 
-    // Create one SVG per stroke showing cumulative progress
     for (let step = 1; step <= strokes.length; step++) {
       const svg = createSvg(viewBox, this.width, this.height);
 
-      // Add grid if enabled
       if (this.renderOptions.showGrid) {
         this.addGrid(svg, vbW, vbH);
       }
 
-      // Create strokes group
       const strokesGroup = createGroup({ class: 'strokes' });
 
-      // Add strokes 1 through step
       for (let i = 0; i < step; i++) {
         const stroke = strokes[i];
         const path = createPath(stroke.pathData, {
@@ -181,6 +190,89 @@ export class KakuDiagram {
       this.container.appendChild(svg);
       this.svgElements.push(svg);
     }
+  }
+
+  /**
+   * Render diagrams for AnimCJK-style data (shape outlines from rawSvg)
+   */
+  private renderAnimCJKDiagrams(): void {
+    if (!this.characterData?.rawSvg) return;
+
+    const { strokes, viewBox } = this.characterData;
+    const [, , vbW, vbH] = viewBox;
+
+    // Parse rawSvg and extract shape paths (those with id attributes)
+    const shapePaths = this.extractShapePaths(this.characterData.rawSvg);
+
+    for (let step = 1; step <= strokes.length; step++) {
+      const svg = createSvg(viewBox, this.width, this.height);
+
+      if (this.renderOptions.showGrid) {
+        this.addGrid(svg, vbW, vbH);
+      }
+
+      const strokesGroup = createGroup({ class: 'strokes' });
+
+      for (let i = 0; i < step; i++) {
+        const paths = shapePaths[i] ?? [];
+        for (const pathData of paths) {
+          const path = createPath(pathData, {
+            fill: this.renderOptions.strokeColor ?? '#000',
+          });
+          strokesGroup.appendChild(path);
+        }
+      }
+
+      svg.appendChild(strokesGroup);
+      this.container.appendChild(svg);
+      this.svgElements.push(svg);
+    }
+  }
+
+  /**
+   * Extract shape path data from AnimCJK rawSvg, grouped by stroke.
+   * Shape paths have IDs like z23383d1, z23383d2, or z12354d3a, z12354d3b
+   * for multi-part strokes. Groups by stroke number extracted from the
+   * clip-path delay values (same grouping as the provider).
+   */
+  private extractShapePaths(rawSvg: string): string[][] {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawSvg, 'image/svg+xml');
+
+    // Group stroke paths by delay to determine stroke ordering
+    const strokePaths = Array.from(doc.querySelectorAll('path[clip-path]'));
+    const delayToShapeIds = new Map<number, string[]>();
+
+    for (const path of strokePaths) {
+      const style = path.getAttribute('style') || '';
+      const match = style.match(/--d:\s*([\d.]+)s/);
+      const delay = match ? parseFloat(match[1]) : 0;
+
+      const clipAttr = path.getAttribute('clip-path') || '';
+      const idMatch = clipAttr.match(/url\(#(.+?)\)/);
+      if (!idMatch) continue;
+
+      // clipPath ID is like z23383c1, the shape path ID is z23383d1
+      const clipId = idMatch[1];
+      const shapeId = clipId.replace(/c(\d+)/, 'd$1');
+
+      if (!delayToShapeIds.has(delay)) {
+        delayToShapeIds.set(delay, []);
+      }
+      delayToShapeIds.get(delay)!.push(shapeId);
+    }
+
+    const sortedDelays = [...delayToShapeIds.keys()].sort((a, b) => a - b);
+
+    return sortedDelays.map((delay) => {
+      const shapeIds = delayToShapeIds.get(delay)!;
+      return shapeIds
+        .map((id) => {
+          const el = doc.getElementById(id);
+          return el?.getAttribute('d') ?? '';
+        })
+        .filter(Boolean);
+    });
   }
 
   /**

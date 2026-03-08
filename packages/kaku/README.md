@@ -144,7 +144,7 @@ kaku.on('reset', () => console.log('Reset'));
 
 ### KakuDiagram
 
-Renders stroke order diagrams as a series of static SVGs, showing cumulative stroke progress.
+Renders stroke order diagrams as a series of static SVGs, showing cumulative stroke progress. Works with both KanjiVG and AnimCJK providers — AnimCJK diagrams render calligraphic shape outlines automatically.
 
 ```typescript
 import { KakuDiagram, KanjiVGProvider } from '@kaspars/kaku';
@@ -152,7 +152,7 @@ import { KakuDiagram, KanjiVGProvider } from '@kaspars/kaku';
 const provider = new KanjiVGProvider({ basePath: '/kanjivg' });
 
 const diagram = new KakuDiagram({
-  provider,
+  provider,  // Works with KanjiVGProvider or AnimCJKProvider
   container: document.getElementById('diagram'),
   width: 80,
   height: 80,

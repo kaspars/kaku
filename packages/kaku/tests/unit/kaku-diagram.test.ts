@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { KakuDiagram } from '../../src/core/kaku-diagram';
 import type { DataProvider, CharacterData, ProviderResult } from '../../src/types';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 // Mock provider
 function createMockProvider(data: CharacterData): DataProvider {
@@ -315,6 +317,95 @@ describe('KakuDiagram', () => {
       await diagram.load('一');
 
       expect(container.querySelectorAll('line')).toHaveLength(0);
+    });
+  });
+
+  describe('AnimCJK diagrams', () => {
+    const kanjiSvg = readFileSync(
+      resolve(__dirname, '../fixtures/animcjk-23383.svg'),
+      'utf-8',
+    );
+    const kanaSvg = readFileSync(
+      resolve(__dirname, '../fixtures/animcjk-12354.svg'),
+      'utf-8',
+    );
+
+    const animcjkData: CharacterData = {
+      character: '字',
+      codePoints: [0x5b57],
+      viewBox: [0, 0, 1024, 1024],
+      strokes: Array.from({ length: 6 }, (_, i) => ({
+        pathData: `M${i} ${i}`,
+        metadata: { index: i },
+      })),
+      source: 'animcjk',
+      rawSvg: kanjiSvg,
+    };
+
+    it('should render filled shape paths for AnimCJK data', async () => {
+      provider = createMockProvider(animcjkData);
+      diagram = new KakuDiagram({ provider, container, strokeColor: '#333' });
+      await diagram.load('字');
+
+      const svgs = container.querySelectorAll('svg');
+      expect(svgs).toHaveLength(6);
+
+      // First SVG: 1 filled shape path
+      const paths1 = svgs[0].querySelectorAll('.strokes path');
+      expect(paths1).toHaveLength(1);
+      expect(paths1[0].getAttribute('fill')).toBe('#333');
+
+      // Last SVG: all 6 shape paths
+      const paths6 = svgs[5].querySelectorAll('.strokes path');
+      expect(paths6).toHaveLength(6);
+    });
+
+    it('should render cumulative shapes correctly', async () => {
+      provider = createMockProvider(animcjkData);
+      diagram = new KakuDiagram({ provider, container });
+      await diagram.load('字');
+
+      const svgs = container.querySelectorAll('svg');
+      for (let i = 0; i < 6; i++) {
+        expect(svgs[i].querySelectorAll('.strokes path')).toHaveLength(i + 1);
+      }
+    });
+
+    it('should handle multi-part strokes', async () => {
+      const kanaData: CharacterData = {
+        character: 'あ',
+        codePoints: [0x3042],
+        viewBox: [0, 0, 1024, 1024],
+        strokes: [
+          { pathData: 'M0 0', metadata: { index: 0 } },
+          { pathData: 'M1 1', metadata: { index: 1 } },
+          { pathData: 'M2 2', metadata: { index: 2 } },
+        ],
+        source: 'animcjk',
+        rawSvg: kanaSvg,
+      };
+
+      provider = createMockProvider(kanaData);
+      diagram = new KakuDiagram({ provider, container });
+      await diagram.load('あ');
+
+      const svgs = container.querySelectorAll('svg');
+      expect(svgs).toHaveLength(3);
+
+      // Stroke 3 (index 2) has two shape parts (d3a, d3b)
+      const paths3 = svgs[2].querySelectorAll('.strokes path');
+      expect(paths3.length).toBeGreaterThanOrEqual(4); // 1 + 1 + 2 parts
+    });
+
+    it('should show grid with AnimCJK data', async () => {
+      provider = createMockProvider(animcjkData);
+      diagram = new KakuDiagram({ provider, container, showGrid: true });
+      await diagram.load('字');
+
+      const svgs = container.querySelectorAll('svg');
+      for (const svg of svgs) {
+        expect(svg.querySelectorAll('line')).toHaveLength(2);
+      }
     });
   });
 });
