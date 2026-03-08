@@ -67,6 +67,11 @@
       background: #555;
     }
 
+    #overlay input[type="checkbox"] {
+      accent-color: #888;
+      vertical-align: middle;
+    }
+
     #charInput {
       width: 3rem;
       text-align: center;
@@ -147,6 +152,12 @@
     </div>
 
     <div class="toolbar-field">
+      <label for="spawnToggle">
+        <input type="checkbox" id="spawnToggle"> Spawn
+      </label>
+    </div>
+
+    <div class="toolbar-field">
       <label for="depthSelect">Depth:</label>
       <select id="depthSelect">
         <option value="5">5</option>
@@ -178,6 +189,7 @@
   <div id="loading">Loading font...</div>
 
   <script type="module">
+    import * as THREE from 'three';
     import { extrudeCharacter, createScene } from './packages/kaku-3d/src/index.ts';
 
     // --- Data ---
@@ -204,8 +216,8 @@
           { char: '木', label: '木 (tree)' },
           { char: '金', label: '金 (gold)' },
           { char: '龍', label: '龍 (dragon)' },
-          { char: 'あ', label: 'あ (hiragana)' },
-          { char: 'カ', label: 'カ (katakana)' },
+          { char: '空', label: '空 (sky)' },
+          { char: '花', label: '花 (flower)' },
         ],
       },
       'zh-hans': {
@@ -264,6 +276,7 @@
     const effectSelect = document.getElementById('effectSelect');
     const depthSelect = document.getElementById('depthSelect');
     const colorSelect = document.getElementById('colorSelect');
+    const spawnToggle = document.getElementById('spawnToggle');
     const errorEl = document.getElementById('error');
     const loadingEl = document.getElementById('loading');
 
@@ -333,6 +346,8 @@
         const color = parseInt(colorSelect.value, 16);
 
         scene3d.clearModels();
+        spawnedPositions.length = 0;
+        spawnedChars.clear();
 
         const model = await extrudeCharacter(char, getFontUrl(), {
           depth,
@@ -349,6 +364,81 @@
         errorEl.textContent = err.message;
         loadingEl.style.display = 'none';
         console.error('Load error:', err);
+      }
+    }
+
+    // --- Spawner ---
+
+    const MAX_SPAWNED = 10;
+    const SPAWN_INTERVAL = 10_000; // ms
+    const MIN_SPAWN_DISTANCE = 150; // minimum distance between spawned characters
+    let spawnTimer = null;
+    /** Positions of spawned characters (updated each spawn) */
+    const spawnedPositions = [];
+    /** Characters already in the scene (to avoid duplicates) */
+    const spawnedChars = new Set();
+
+    function findUncrowdedPosition() {
+      const half = scene3d.getGroundHalfSize();
+      const margin = 200; // stay away from walls
+      const range = half - margin;
+
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const x = (Math.random() * 2 - 1) * range;
+        const z = (Math.random() * 2 - 1) * range;
+        const tooClose = spawnedPositions.some(
+          p => Math.hypot(p.x - x, p.z - z) < MIN_SPAWN_DISTANCE
+        );
+        if (!tooClose) return { x, z };
+      }
+      // fallback: random position
+      return {
+        x: (Math.random() * 2 - 1) * range,
+        z: (Math.random() * 2 - 1) * range,
+      };
+    }
+
+    function pickRandomChar() {
+      const config = LANG_CONFIG[langSelect.value];
+      const available = config.characters.filter(c => !spawnedChars.has(c.char));
+      if (available.length === 0) return null;
+      return available[Math.floor(Math.random() * available.length)].char;
+    }
+
+    async function spawnOne() {
+      if (scene3d.getModelCount() >= MAX_SPAWNED) return;
+
+      const char = pickRandomChar();
+      if (!char) return; // all characters already spawned
+      const depth = parseInt(depthSelect.value, 10);
+      const color = parseInt(colorSelect.value, 16);
+
+      try {
+        const model = await extrudeCharacter(char, getFontUrl(), {
+          depth, color, bevel: true,
+        });
+        const pos = findUncrowdedPosition();
+        const position = new THREE.Vector3(pos.x, 0, pos.z);
+        spawnedPositions.push(pos);
+        spawnedChars.add(char);
+        scene3d.setEffect(effectSelect.value);
+        scene3d.addModel(model, position);
+      } catch (err) {
+        console.warn('Spawn error:', err);
+      }
+    }
+
+    function startSpawning() {
+      if (spawnTimer) return;
+      // Spawn one immediately
+      spawnOne();
+      spawnTimer = setInterval(spawnOne, SPAWN_INTERVAL);
+    }
+
+    function stopSpawning() {
+      if (spawnTimer) {
+        clearInterval(spawnTimer);
+        spawnTimer = null;
       }
     }
 
@@ -369,6 +459,13 @@
     });
     depthSelect.addEventListener('change', loadCharacter);
     colorSelect.addEventListener('change', loadCharacter);
+    spawnToggle.addEventListener('change', () => {
+      if (spawnToggle.checked) {
+        startSpawning();
+      } else {
+        stopSpawning();
+      }
+    });
 
     // --- Init ---
 

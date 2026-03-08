@@ -3,33 +3,37 @@ import * as THREE from 'three';
 export type AnimationEffect = 'static' | 'wandering' | 'jumpy';
 
 export interface CharacterAnimator {
-  /** Update animations each frame */
+  /** Update all animations each frame */
   update(delta: number): void;
-  /** Set the active model and effect */
-  setModel(model: THREE.Group | null, effect: AnimationEffect): void;
-  /** Set the AudioListener (typically attached to the camera) to enable footstep sounds */
+  /** Register a model for animation */
+  addModel(model: THREE.Group, effect: AnimationEffect): void;
+  /** Remove a model from animation */
+  removeModel(model: THREE.Group): void;
+  /** Change effect for all registered models */
+  setEffect(effect: AnimationEffect): void;
+  /** Set the AudioListener for spatial footstep sounds */
   setAudioListener(listener: THREE.AudioListener): void;
+  /** Remove all models */
+  clear(): void;
   /** Clean up */
   dispose(): void;
 }
 
 interface WanderState {
-  /** Current heading in radians (Y rotation) */
   heading: number;
-  /** Target heading to turn toward */
   targetHeading: number;
-  /** Time until next direction change */
   nextTurnIn: number;
-  /** Walk cycle phase (advances continuously) */
   walkPhase: number;
-  /** Current walk speed */
   speed: number;
-  /** Whether currently pausing */
   paused: boolean;
-  /** Time remaining in pause */
   pauseTimer: number;
-  /** Which half of the step cycle we're in (0 or 1), for detecting foot plants */
   lastStepHalf: number;
+}
+
+interface AnimatedEntry {
+  model: THREE.Group;
+  wander: WanderState | null;
+  audio: THREE.PositionalAudio | null;
 }
 
 /** Parameters that define a walk style */
@@ -38,23 +42,15 @@ interface WalkStyle {
   speedVariation: number;
   rockAngle: number;
   bobHeight: number;
-  /** Steps per second */
   stepFrequency: number;
-  /** How fast it turns (radians/sec) */
   turnRate: number;
-  /** Forward lean angle */
   forwardLean: number;
-  /** Idle sway multiplier */
   idleSwayScale: number;
-  /** Pause probability on direction change */
   pauseChance: number;
-  /** Min/max pause duration */
   pauseMin: number;
   pauseMax: number;
-  /** Min/max time between direction changes */
   turnIntervalMin: number;
   turnIntervalMax: number;
-  /** Bob curve: 'bounce' = abs(sin), 'smooth' = (1 - cos) / 2 */
   bobCurve: 'bounce' | 'smooth';
 }
 
@@ -62,10 +58,10 @@ const WALK_STYLES: Record<'wandering' | 'jumpy', WalkStyle> = {
   wandering: {
     speed: 18,
     speedVariation: 0.15,
-    rockAngle: 0.06,         // pronounced but slow weight shift
-    bobHeight: 2.5,          // visible rise per step
-    stepFrequency: 0.55,     // very slow, heavy steps
-    turnRate: 0.3,            // unhurried turns
+    rockAngle: 0.06,
+    bobHeight: 2.5,
+    stepFrequency: 0.55,
+    turnRate: 0.3,
     forwardLean: 0.012,
     idleSwayScale: 0.1,
     pauseChance: 0.45,
@@ -78,10 +74,10 @@ const WALK_STYLES: Record<'wandering' | 'jumpy', WalkStyle> = {
   jumpy: {
     speed: 30,
     speedVariation: 0.6,
-    rockAngle: 0.08,          // pronounced tilt
-    bobHeight: 3,             // bouncy
-    stepFrequency: 4,         // quick steps
-    turnRate: 1.5,            // snappy turns
+    rockAngle: 0.08,
+    bobHeight: 3,
+    stepFrequency: 4,
+    turnRate: 1.5,
     forwardLean: 0.03,
     idleSwayScale: 0.3,
     pauseChance: 0.3,
@@ -94,41 +90,30 @@ const WALK_STYLES: Record<'wandering' | 'jumpy', WalkStyle> = {
 };
 
 /**
- * Create an animator that applies procedural effects to character models.
+ * Create an animator that manages procedural effects for multiple character models.
  */
 export function createAnimator(options: {
-  /** Half-size of the ground area for boundary clamping */
   boundsHalfSize?: number;
 } = {}): CharacterAnimator {
   const boundsHalfSize = options.boundsHalfSize ?? 900;
 
-  let model: THREE.Group | null = null;
+  const entries: AnimatedEntry[] = [];
   let effect: AnimationEffect = 'static';
-  let wander: WanderState | null = null;
   let style: WalkStyle = WALK_STYLES.wandering;
-
-  // Audio
   let audioListener: THREE.AudioListener | null = null;
-  let positionalAudio: THREE.PositionalAudio | null = null;
-  let audioContext: AudioContext | null = null;
 
-  /**
-   * Synthesize a short low-frequency thump and play it via the PositionalAudio.
-   * The volume and panning are handled automatically by Three.js based on distance.
-   */
-  function playFootstep() {
-    if (!positionalAudio || !audioContext) return;
+  function getAudioContext(): AudioContext | null {
+    return audioListener?.context ?? null;
+  }
 
-    // Resume AudioContext on first footstep (browsers require user gesture)
-    if (audioContext.state === 'suspended') {
-      audioContext.resume();
-      return;
-    }
+  function playFootstep(entry: AnimatedEntry) {
+    if (!entry.audio) return;
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state === 'suspended') return;
 
-    // Create a short thump: low-frequency oscillator with fast decay
-    const now = audioContext.currentTime;
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
     osc.type = 'sine';
     osc.frequency.setValueAtTime(80, now);
@@ -137,40 +122,34 @@ export function createAnimator(options: {
     gain.gain.setValueAtTime(0.6, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
 
-    // Connect through the PositionalAudio's panner for spatial positioning
     osc.connect(gain);
-    gain.connect(positionalAudio.panner);
+    gain.connect(entry.audio.panner);
 
     osc.start(now);
     osc.stop(now + 0.25);
   }
 
-  function attachAudio() {
-    if (!model || !audioListener) return;
+  function attachAudio(entry: AnimatedEntry) {
+    if (!audioListener) return;
+    detachAudio(entry);
 
-    // Remove old audio if any
-    detachAudio();
-
-    positionalAudio = new THREE.PositionalAudio(audioListener);
-    positionalAudio.setRefDistance(100);
-    positionalAudio.setRolloffFactor(1.5);
-    positionalAudio.setMaxDistance(1500);
-    model.add(positionalAudio);
-
-    audioContext = audioListener.context;
+    const audio = new THREE.PositionalAudio(audioListener);
+    audio.setRefDistance(100);
+    audio.setRolloffFactor(1.5);
+    audio.setMaxDistance(1500);
+    entry.model.add(audio);
+    entry.audio = audio;
   }
 
-  function detachAudio() {
-    if (positionalAudio) {
-      if (positionalAudio.parent) {
-        positionalAudio.parent.remove(positionalAudio);
-      }
-      positionalAudio = null;
+  function detachAudio(entry: AnimatedEntry) {
+    if (entry.audio) {
+      if (entry.audio.parent) entry.audio.parent.remove(entry.audio);
+      entry.audio = null;
     }
   }
 
-  function initWander() {
-    wander = {
+  function createWanderState(): WanderState {
+    return {
       heading: Math.random() * Math.PI * 2,
       targetHeading: Math.random() * Math.PI * 2,
       nextTurnIn: style.turnIntervalMin + Math.random() * (style.turnIntervalMax - style.turnIntervalMin),
@@ -182,9 +161,7 @@ export function createAnimator(options: {
     };
   }
 
-  function pickNewDirection() {
-    if (!wander) return;
-    // Turn between 30 and 120 degrees in random direction
+  function pickNewDirection(wander: WanderState) {
     const turnAmount = (Math.PI / 6) + Math.random() * (Math.PI / 2);
     const sign = Math.random() < 0.5 ? 1 : -1;
     wander.targetHeading = wander.heading + sign * turnAmount;
@@ -197,16 +174,14 @@ export function createAnimator(options: {
     }
   }
 
-  function updateWander(delta: number) {
-    if (!model || !wander) return;
+  function updateEntry(entry: AnimatedEntry, delta: number) {
+    const { model, wander } = entry;
+    if (!wander) return;
 
     // Handle pause
     if (wander.paused) {
       wander.pauseTimer -= delta;
-      if (wander.pauseTimer <= 0) {
-        wander.paused = false;
-      }
-      // Gentle idle sway while paused
+      if (wander.pauseTimer <= 0) wander.paused = false;
       wander.walkPhase += delta * style.stepFrequency * 0.2;
       const idleSway = Math.sin(wander.walkPhase * Math.PI * 2) * style.rockAngle * style.idleSwayScale;
       model.rotation.z = idleSway;
@@ -214,11 +189,10 @@ export function createAnimator(options: {
       return;
     }
 
-    // Smoothly turn toward target heading
+    // Smooth turning
     let headingDiff = wander.targetHeading - wander.heading;
     while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
     while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
-
     const maxTurn = style.turnRate * delta;
     if (Math.abs(headingDiff) < maxTurn) {
       wander.heading = wander.targetHeading;
@@ -226,51 +200,39 @@ export function createAnimator(options: {
       wander.heading += Math.sign(headingDiff) * maxTurn;
     }
 
-    // Advance walk cycle
+    // Walk cycle
     wander.walkPhase += delta * style.stepFrequency;
     const phase = wander.walkPhase * Math.PI * 2;
 
-    // Side-to-side rock (Z rotation) — smooth sine wave
-    const rock = Math.sin(phase) * style.rockAngle;
-    model.rotation.z = rock;
+    // Rock
+    model.rotation.z = Math.sin(phase) * style.rockAngle;
 
-    // Detect foot plants: each time sin(phase) crosses a peak (±1),
-    // we've completed a half-step. Track via floor(phase / PI + 0.5).
+    // Footstep detection
     const currentStepHalf = Math.floor(wander.walkPhase * 2);
     if (currentStepHalf !== wander.lastStepHalf) {
       wander.lastStepHalf = currentStepHalf;
-      playFootstep();
+      playFootstep(entry);
     }
 
-    // Vertical bob
+    // Bob
     let bob: number;
     if (style.bobCurve === 'smooth') {
-      // Smooth rise and fall — peaks once per step, never jarring
       bob = (1 - Math.cos(phase * 2)) / 2 * style.bobHeight;
     } else {
-      // Bouncy — snaps up at each step
       bob = Math.abs(Math.sin(phase)) * style.bobHeight;
     }
 
-    // Forward lean
     model.rotation.x = style.forwardLean;
-
-    // Face the movement direction
     model.rotation.y = Math.PI + wander.heading;
 
-    // Modulate forward speed by walk cycle:
-    // At mid-stride (upright, rock crossing zero) — full speed (pushing off)
-    // At foot plant (max rock) — nearly stopped
+    // Stride-synced movement
     const strideProgress = Math.abs(Math.cos(phase));
     const strideFactor = 0.05 + 0.95 * strideProgress * strideProgress;
-    const moveX = Math.sin(wander.heading) * wander.speed * strideFactor * delta;
-    const moveZ = Math.cos(wander.heading) * wander.speed * strideFactor * delta;
-    model.position.x += moveX;
-    model.position.z += moveZ;
-
+    model.position.x += Math.sin(wander.heading) * wander.speed * strideFactor * delta;
+    model.position.z += Math.cos(wander.heading) * wander.speed * strideFactor * delta;
     model.position.y = bob;
 
-    // Boundary: if approaching wall, turn toward center
+    // Boundary
     const margin = 100;
     const limit = boundsHalfSize - margin;
     if (Math.abs(model.position.x) > limit || Math.abs(model.position.z) > limit) {
@@ -280,54 +242,82 @@ export function createAnimator(options: {
       wander.nextTurnIn = style.turnIntervalMin + Math.random() * 3;
     }
 
-    // Countdown to next direction change
+    // Direction change countdown
     wander.nextTurnIn -= delta;
     if (wander.nextTurnIn <= 0) {
-      pickNewDirection();
+      pickNewDirection(wander);
+    }
+  }
+
+  function initEntry(entry: AnimatedEntry) {
+    if (effect === 'wandering' || effect === 'jumpy') {
+      entry.wander = createWanderState();
+      if (audioListener) attachAudio(entry);
+    } else {
+      entry.wander = null;
+      detachAudio(entry);
     }
   }
 
   return {
     update(delta: number) {
-      if (!model || effect === 'static') return;
-      updateWander(delta);
+      if (effect === 'static') return;
+      for (const entry of entries) {
+        updateEntry(entry, delta);
+      }
     },
 
-    setModel(newModel: THREE.Group | null, newEffect: AnimationEffect) {
-      // Reset previous model's transforms
-      if (model && model !== newModel) {
-        model.rotation.set(0, 0, 0);
+    addModel(model: THREE.Group, eff: AnimationEffect) {
+      effect = eff;
+      if (eff === 'wandering' || eff === 'jumpy') {
+        style = WALK_STYLES[eff];
       }
+      const entry: AnimatedEntry = { model, wander: null, audio: null };
+      entries.push(entry);
+      initEntry(entry);
+    },
 
-      detachAudio();
-      model = newModel;
-      effect = newEffect;
-      wander = null;
-
-      if (newEffect === 'wandering' || newEffect === 'jumpy') {
-        style = WALK_STYLES[newEffect];
+    removeModel(model: THREE.Group) {
+      const idx = entries.findIndex(e => e.model === model);
+      if (idx >= 0) {
+        detachAudio(entries[idx]);
+        entries.splice(idx, 1);
       }
+    },
 
-      if (model && effect !== 'static') {
-        initWander();
-        if (audioListener) attachAudio();
+    setEffect(eff: AnimationEffect) {
+      effect = eff;
+      if (eff === 'wandering' || eff === 'jumpy') {
+        style = WALK_STYLES[eff];
+      }
+      for (const entry of entries) {
+        entry.model.rotation.set(0, 0, 0);
+        entry.model.position.y = 0;
+        initEntry(entry);
       }
     },
 
     setAudioListener(listener: THREE.AudioListener) {
       audioListener = listener;
-      // Attach audio if model already exists and is animating
-      if (model && effect !== 'static') {
-        attachAudio();
+      for (const entry of entries) {
+        if (entry.wander && !entry.audio) {
+          attachAudio(entry);
+        }
       }
     },
 
+    clear() {
+      for (const entry of entries) {
+        entry.model.rotation.set(0, 0, 0);
+        entry.model.position.y = 0;
+        detachAudio(entry);
+      }
+      entries.length = 0;
+    },
+
     dispose() {
-      detachAudio();
-      model = null;
-      wander = null;
+      this.clear();
       audioListener = null;
-      audioContext = null;
     },
   };
 }

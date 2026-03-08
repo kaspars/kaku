@@ -16,8 +16,12 @@ export interface Kaku3DScene {
   animator: CharacterAnimator;
   /** Add a model to the scene at a position */
   addModel(model: THREE.Group, position?: THREE.Vector3): void;
-  /** Set the animation effect for the current model */
+  /** Set the animation effect for all models */
   setEffect(effect: AnimationEffect): void;
+  /** Get the number of models in the scene */
+  getModelCount(): number;
+  /** Get the ground half-size */
+  getGroundHalfSize(): number;
   /** Remove all character models */
   clearModels(): void;
   /** Start the render loop */
@@ -283,18 +287,17 @@ export function createScene(options: SceneOptions): Kaku3DScene {
       }
       scene.add(model);
       models.push(model);
-      animator.setModel(model, currentEffect);
+      animator.addModel(model, currentEffect);
       updateObstacles();
     },
 
     setEffect(effect: AnimationEffect) {
       currentEffect = effect;
-      if (models.length > 0) {
-        animator.setModel(models[models.length - 1], effect);
-      }
+      animator.setEffect(effect);
     },
 
     clearModels() {
+      animator.clear();
       for (const model of models) {
         scene.remove(model);
         model.traverse((child) => {
@@ -309,8 +312,17 @@ export function createScene(options: SceneOptions): Kaku3DScene {
         });
       }
       models.length = 0;
-      animator.setModel(null, currentEffect);
       updateObstacles();
+    },
+
+    /** Get the number of models currently in the scene */
+    getModelCount() {
+      return models.length;
+    },
+
+    /** Get the ground half-size for spawn position calculations */
+    getGroundHalfSize() {
+      return halfGround;
     },
 
     start() {
