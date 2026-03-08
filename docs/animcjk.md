@@ -146,25 +146,33 @@ An `AnimCJKProvider` would need to:
    - Simplified Chinese: `svgsZhHans/`
    - Traditional Chinese: `svgsZhHant/`
    - Korean: `svgsKo/`
-3. **Parse both path types**:
-   - Shape paths (`id` matching `z{cp}d{n}`) for rendering
-   - Stroke paths (`clip-path` attribute) for animation direction
-4. **Group multi-part strokes** by base number (e.g., `d3a` + `d3b` = stroke 3)
-5. **Handle the clip-path animation model** — this is fundamentally different from KanjiVG's approach
+3. **Return the raw SVG content** for Kaku to embed directly
+4. **Parse the direction polylines** (paths with `clip-path` attribute) for stroke metadata
+5. **Group multi-part strokes** by base number (e.g., `d3a` + `d3b` = stroke 3) — these share the same `--d` delay value
 
-### Animation Approach
+### Animation Approach: Wrapping Native SVGs
 
-There are two possible strategies for animating AnimCJK strokes in Kaku:
+AnimCJK SVGs are self-animating — they contain embedded CSS keyframes that animate strokes via `stroke-dashoffset` on clipped polylines. Rather than reimplementing this animation, Kaku acts as a thin wrapper:
 
-**Option A: Clip-path animation (faithful to AnimCJK)**
+**Animated playback**: Embed the SVG as-is. The embedded CSS handles the animation automatically. Kaku can control timing by overriding the `--t` (duration) and `--d` (delay) custom properties.
 
-Render each stroke as AnimCJK does: a thick stroke sweeping along the direction polyline, clipped to the shape outline. This produces the most visually accurate result but requires Kaku's renderer to support a different animation model (clip-path + polyline) alongside the existing stroke-dashoffset model.
+**Step-by-step mode**: AnimCJK's own [card demo](https://github.com/parsimonhi/animCJK/blob/master/samples/card.html) demonstrates this approach:
 
-**Option B: Shape outline with stroke-dashoffset**
+1. Strip the embedded `<style>` block from the SVG
+2. Apply external CSS that starts all stroke paths as transparent:
+   ```css
+   svg.acjk path[id]      { fill: #ccc; }         /* shape outlines: grey */
+   svg.acjk path:not([id]) { stroke: transparent; } /* stroke paths: hidden */
+   ```
+3. Toggle visibility by adding a `visible` class to individual stroke paths:
+   ```css
+   svg.acjk path.visible:not([id]) { stroke: #000; }
+   ```
+4. Track a `lastShown` counter — strokes with index < lastShown get `class="visible"`
 
-Use the shape outline path with Kaku's existing `stroke-dashoffset` animation. This would be simpler to implement but the visual result may differ — the stroke would be revealed along its outline perimeter rather than swept in the natural writing direction.
+This enables `nextStroke()` / `previousStroke()` / `reset()` with zero animation logic — just CSS class toggling. The stroke paths already have `clip-path` set, so making a stroke visible instantly reveals its full calligraphic shape through the clip region.
 
-Option A is recommended for visual fidelity.
+**Hybrid approach**: For animated step-by-step (where each stroke draws progressively), selectively enable the CSS animation on individual stroke paths while keeping others either hidden or fully revealed.
 
 ### Practice (kaku-ren) Considerations
 
