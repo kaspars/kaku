@@ -447,7 +447,6 @@
         const position = new THREE.Vector3(pos.x, 0, pos.z);
         spawnedPositions.push(pos);
         spawnedChars.add(char);
-        scene3d.setEffect(effectSelect.value);
         scene3d.addModel(model, position);
         // Start fade-in: set transparent, then animate opacity
         const mats = [];
