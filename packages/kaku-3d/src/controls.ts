@@ -48,12 +48,20 @@ export function createFirstPersonControls(
   const mouseSensitivity = options.mouseSensitivity ?? 0.002;
   const collisionMargin = options.collisionMargin ?? 30;
 
+  const jumpForce = 400;
+  const gravity = 500;
+
   let obstacles: Obstacle[] = [];
   let boundsHalfSize = Infinity;
 
   // Euler angles for camera rotation
   let yaw = 0;
   let pitch = 0;
+
+  // Jump state
+  let verticalVelocity = 0;
+  let heightAboveGround = 0;
+  let isJumping = false;
 
   const keys: ControlKeys = {
     forward: false,
@@ -91,6 +99,13 @@ export function createFirstPersonControls(
       case 'ArrowRight':
       case 'KeyD':
         keys.right = true;
+        e.preventDefault();
+        break;
+      case 'Space':
+        if (!isJumping) {
+          isJumping = true;
+          verticalVelocity = jumpForce;
+        }
         e.preventDefault();
         break;
     }
@@ -177,8 +192,10 @@ export function createFirstPersonControls(
         newX = Math.max(-boundsHalfSize + wallMargin, Math.min(boundsHalfSize - wallMargin, newX));
         newZ = Math.max(-boundsHalfSize + wallMargin, Math.min(boundsHalfSize - wallMargin, newZ));
 
-        // Push away from obstacles
+        // Push away from obstacles (skip when airborne — can jump over them)
+        const airborne = heightAboveGround > 50;
         for (const obs of obstacles) {
+          if (airborne) break;
           const dx = newX - obs.position.x;
           const dz = newZ - obs.position.y; // .y is Z in Vector2
           const dist = Math.sqrt(dx * dx + dz * dz);
@@ -197,8 +214,17 @@ export function createFirstPersonControls(
         camera.position.z = newZ;
       }
 
-      // Lock Y to eye height
-      camera.position.y = eyeHeight;
+      // Jump physics
+      if (isJumping) {
+        verticalVelocity -= gravity * delta;
+        heightAboveGround += verticalVelocity * delta;
+        if (heightAboveGround <= 0) {
+          heightAboveGround = 0;
+          verticalVelocity = 0;
+          isJumping = false;
+        }
+      }
+      camera.position.y = eyeHeight + heightAboveGround;
     },
 
     setObstacles(obs: Obstacle[]) {
