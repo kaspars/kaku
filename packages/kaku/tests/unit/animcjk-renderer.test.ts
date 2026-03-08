@@ -97,14 +97,15 @@ describe('AnimCJKRenderer', () => {
       expect(strokes).toHaveLength(6);
     });
 
-    it('should start all strokes as hidden', () => {
+    it('should start all strokes as hidden via dashoffset', () => {
       const data = makeCharacterData(kanjiSvg);
       renderer.render(data);
 
       const svg = container.querySelector('svg')!;
-      const strokePaths = svg.querySelectorAll('path[clip-path]');
+      const strokePaths = svg.querySelectorAll('path[clip-path]') as NodeListOf<SVGPathElement>;
       for (const path of strokePaths) {
-        expect(path.classList.contains('visible')).toBe(false);
+        expect(path.style.strokeDashoffset).toBe('3337');
+        expect(path.style.strokeDasharray).toBe('3337');
       }
     });
 
@@ -137,35 +138,36 @@ describe('AnimCJKRenderer', () => {
   });
 
   describe('RenderedStroke', () => {
-    it('should show stroke when setProgress > 0', () => {
+    it('should fully reveal stroke when setProgress(1)', () => {
       const data = makeCharacterData(kanjiSvg);
       const strokes = renderer.render(data);
 
       strokes[0].setProgress(1);
 
-      expect(strokes[0].element.classList.contains('visible')).toBe(true);
+      expect(strokes[0].element.style.strokeDashoffset).toBe('0');
     });
 
-    it('should hide stroke when setProgress is 0', () => {
+    it('should hide stroke when setProgress(0)', () => {
       const data = makeCharacterData(kanjiSvg);
       const strokes = renderer.render(data);
 
       strokes[0].setProgress(1);
       strokes[0].setProgress(0);
 
-      expect(strokes[0].element.classList.contains('visible')).toBe(false);
+      expect(strokes[0].element.style.strokeDashoffset).toBe('3337');
     });
 
-    it('should show stroke at any fractional progress', () => {
+    it('should partially reveal stroke at fractional progress', () => {
       const data = makeCharacterData(kanjiSvg);
       const strokes = renderer.render(data);
 
       strokes[0].setProgress(0.5);
 
-      expect(strokes[0].element.classList.contains('visible')).toBe(true);
+      const offset = parseFloat(strokes[0].element.style.strokeDashoffset);
+      expect(offset).toBeCloseTo(3337 * 0.5);
     });
 
-    it('should toggle all parts of multi-part strokes', () => {
+    it('should animate all parts of multi-part strokes', () => {
       const kanaData: CharacterData = {
         character: 'あ',
         codePoints: [0x3042],
@@ -185,14 +187,25 @@ describe('AnimCJKRenderer', () => {
       // Stroke 3 (index 2) has two clip-path paths sharing --d:3s
       strokes[2].setProgress(1);
 
-      // Both parts should be visible
+      // Both parts should be fully revealed
       const svg = container.querySelector('svg')!;
-      const strokePaths = svg.querySelectorAll('path[clip-path]');
-      // Last two paths share --d:3s
+      const strokePaths = svg.querySelectorAll('path[clip-path]') as NodeListOf<SVGPathElement>;
       const part3a = strokePaths[2];
       const part3b = strokePaths[3];
-      expect(part3a.classList.contains('visible')).toBe(true);
-      expect(part3b.classList.contains('visible')).toBe(true);
+      expect(part3a.style.strokeDashoffset).toBe('0');
+      expect(part3b.style.strokeDashoffset).toBe('0');
+    });
+
+    it('should set transition on stroke paths', () => {
+      const data = makeCharacterData(kanjiSvg);
+      const strokes = renderer.render(data);
+
+      strokes[0].setTransition(0.5, 'linear');
+      expect(strokes[0].element.style.transition).toContain('stroke-dashoffset');
+      expect(strokes[0].element.style.transition).toContain('0.5s');
+
+      strokes[0].clearTransition();
+      expect(strokes[0].element.style.transition).toBe('none');
     });
 
     it('should set opacity on all parts', () => {

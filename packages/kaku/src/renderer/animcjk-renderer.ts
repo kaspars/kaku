@@ -86,10 +86,8 @@ export class AnimCJKRenderer implements Renderer {
       showOutline
         ? `path[id] { fill: ${outlineColor}; }`
         : `path[id] { fill: none; }`,
-      // Stroke paths: hidden by default
-      `path[clip-path] { stroke: transparent; stroke-width: 128; stroke-linecap: round; fill: none; }`,
-      // Visible stroke paths
-      `path[clip-path].visible { stroke: ${strokeColor}; }`,
+      // Stroke paths: colored but hidden via dashoffset (set per-element in JS)
+      `path[clip-path] { stroke: ${strokeColor}; stroke-width: 128; stroke-linecap: round; fill: none; }`,
     ].join('\n');
     this.svg.appendChild(styleEl);
 
@@ -147,41 +145,57 @@ export class AnimCJKRenderer implements Renderer {
   }
 
   /**
-   * Create a RenderedStroke that controls visibility via CSS class toggling.
+   * Create a RenderedStroke with dashoffset-based draw animation.
    *
-   * setProgress(0) = hidden, setProgress(>0) = visible.
-   * Transitions are no-ops since visibility is instant (CSS class toggle).
+   * Each path element gets stroke-dasharray/dashoffset initialized so
+   * setProgress(0) = fully hidden, setProgress(1) = fully revealed.
+   * For multi-part strokes, all parts animate together.
    */
   private createRenderedStroke(
     pathElements: SVGPathElement[],
     stroke: CharacterData['strokes'][0],
   ): RenderedStroke {
-    // Use the first path element as the canonical element
     const element = pathElements[0];
+
+    // Compute path lengths and initialize dashoffset for each part.
+    // AnimCJK uses pathLength="3333" with dasharray 3337 — we use the
+    // same normalized value so the sweep speed is consistent.
+    const pathLength = 3337;
+    for (const p of pathElements) {
+      p.style.strokeDasharray = String(pathLength);
+      p.style.strokeDashoffset = String(pathLength);
+      p.style.opacity = '1';
+    }
 
     return {
       element,
-      length: 0, // Not meaningful for class-toggled strokes
+      length: pathLength,
       stroke,
 
       setProgress(progress: number) {
-        const visible = progress > 0;
+        const clamped = Math.max(0, Math.min(1, progress));
+        const offset = pathLength * (1 - clamped);
         for (const p of pathElements) {
-          p.classList.toggle('visible', visible);
+          p.style.strokeDashoffset = String(offset);
         }
       },
 
-      setTransition() {
-        // No-op: visibility toggle is instant
+      setTransition(duration: number, easing = 'ease') {
+        for (const p of pathElements) {
+          p.style.transition = `stroke-dashoffset ${duration}s ${easing}`;
+        }
       },
 
       clearTransition() {
-        // No-op
+        for (const p of pathElements) {
+          p.style.transition = 'none';
+        }
       },
 
       setOpacity(opacity: number) {
+        const clamped = Math.max(0, Math.min(1, opacity));
         for (const p of pathElements) {
-          p.style.opacity = String(Math.max(0, Math.min(1, opacity)));
+          p.style.opacity = String(clamped);
         }
       },
 
