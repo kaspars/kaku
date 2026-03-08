@@ -7,6 +7,8 @@ export interface CharacterAnimator {
   update(delta: number): void;
   /** Set the active model and effect */
   setModel(model: THREE.Group | null, effect: AnimationEffect): void;
+  /** Set the AudioListener (typically attached to the camera) to enable footstep sounds */
+  setAudioListener(listener: THREE.AudioListener): void;
   /** Clean up */
   dispose(): void;
 }
@@ -26,6 +28,8 @@ interface WanderState {
   paused: boolean;
   /** Time remaining in pause */
   pauseTimer: number;
+  /** Which half of the step cycle we're in (0 or 1), for detecting foot plants */
+  lastStepHalf: number;
 }
 
 /** Parameters that define a walk style */
@@ -103,6 +107,68 @@ export function createAnimator(options: {
   let wander: WanderState | null = null;
   let style: WalkStyle = WALK_STYLES.wandering;
 
+  // Audio
+  let audioListener: THREE.AudioListener | null = null;
+  let positionalAudio: THREE.PositionalAudio | null = null;
+  let audioContext: AudioContext | null = null;
+
+  /**
+   * Synthesize a short low-frequency thump and play it via the PositionalAudio.
+   * The volume and panning are handled automatically by Three.js based on distance.
+   */
+  function playFootstep() {
+    if (!positionalAudio || !audioContext) return;
+
+    // Resume AudioContext on first footstep (browsers require user gesture)
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+      return;
+    }
+
+    // Create a short thump: low-frequency oscillator with fast decay
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+    // Connect through the PositionalAudio's panner for spatial positioning
+    osc.connect(gain);
+    gain.connect(positionalAudio.panner);
+
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  function attachAudio() {
+    if (!model || !audioListener) return;
+
+    // Remove old audio if any
+    detachAudio();
+
+    positionalAudio = new THREE.PositionalAudio(audioListener);
+    positionalAudio.setRefDistance(100);
+    positionalAudio.setRolloffFactor(1.5);
+    positionalAudio.setMaxDistance(1500);
+    model.add(positionalAudio);
+
+    audioContext = audioListener.context;
+  }
+
+  function detachAudio() {
+    if (positionalAudio) {
+      if (positionalAudio.parent) {
+        positionalAudio.parent.remove(positionalAudio);
+      }
+      positionalAudio = null;
+    }
+  }
+
   function initWander() {
     wander = {
       heading: Math.random() * Math.PI * 2,
@@ -112,6 +178,7 @@ export function createAnimator(options: {
       speed: style.speed * (1 - style.speedVariation / 2 + Math.random() * style.speedVariation),
       paused: false,
       pauseTimer: 0,
+      lastStepHalf: 0,
     };
   }
 
@@ -166,6 +233,14 @@ export function createAnimator(options: {
     // Side-to-side rock (Z rotation) — smooth sine wave
     const rock = Math.sin(phase) * style.rockAngle;
     model.rotation.z = rock;
+
+    // Detect foot plants: each time sin(phase) crosses a peak (±1),
+    // we've completed a half-step. Track via floor(phase / PI + 0.5).
+    const currentStepHalf = Math.floor(wander.walkPhase * 2);
+    if (currentStepHalf !== wander.lastStepHalf) {
+      wander.lastStepHalf = currentStepHalf;
+      playFootstep();
+    }
 
     // Vertical bob
     let bob: number;
@@ -224,6 +299,7 @@ export function createAnimator(options: {
         model.rotation.set(0, 0, 0);
       }
 
+      detachAudio();
       model = newModel;
       effect = newEffect;
       wander = null;
@@ -234,12 +310,24 @@ export function createAnimator(options: {
 
       if (model && effect !== 'static') {
         initWander();
+        if (audioListener) attachAudio();
+      }
+    },
+
+    setAudioListener(listener: THREE.AudioListener) {
+      audioListener = listener;
+      // Attach audio if model already exists and is animating
+      if (model && effect !== 'static') {
+        attachAudio();
       }
     },
 
     dispose() {
+      detachAudio();
       model = null;
       wander = null;
+      audioListener = null;
+      audioContext = null;
     },
   };
 }

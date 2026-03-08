@@ -200,6 +200,19 @@ export function createScene(options: SceneOptions): Kaku3DScene {
   directionalLight.shadow.camera.far = halfGround * 2;
   scene.add(directionalLight);
 
+  // Audio listener on camera for spatial sound
+  const audioListener = new THREE.AudioListener();
+  camera.add(audioListener);
+
+  // Resume AudioContext on first user click (browser autoplay policy)
+  const resumeAudio = () => {
+    if (audioListener.context.state === 'suspended') {
+      audioListener.context.resume();
+    }
+  };
+  document.addEventListener('click', resumeAudio, { once: false });
+  document.addEventListener('keydown', resumeAudio, { once: false });
+
   // Controls
   const controls = createFirstPersonControls(camera, renderer.domElement, {
     eyeHeight,
@@ -209,8 +222,9 @@ export function createScene(options: SceneOptions): Kaku3DScene {
   });
   controls.setBounds(halfGround);
 
-  // Animator
+  // Animator with spatial audio
   const animator = createAnimator({ boundsHalfSize: halfGround });
+  animator.setAudioListener(audioListener);
   let currentEffect: AnimationEffect = 'static';
 
   // Model tracking
