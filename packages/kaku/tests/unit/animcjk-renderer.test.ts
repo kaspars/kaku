@@ -118,6 +118,23 @@ describe('AnimCJKRenderer', () => {
       );
     });
 
+    it('should throw when rawSvg has no SVG element', () => {
+      const data = makeCharacterData('<div>not svg</div>');
+
+      expect(() => renderer.render(data)).toThrow(
+        'No SVG element in rawSvg',
+      );
+    });
+
+    it('should show outlines when showOutline is true', () => {
+      const data = makeCharacterData(kanjiSvg);
+      renderer.render(data, { showOutline: true, outlineColor: '#eee' });
+
+      const svg = container.querySelector('svg')!;
+      const style = svg.querySelector('style')!;
+      expect(style.textContent).toContain('fill: #eee');
+    });
+
     it('should apply custom stroke color', () => {
       const data = makeCharacterData(kanjiSvg);
       renderer.render(data, { strokeColor: '#f00' });
@@ -222,6 +239,18 @@ describe('AnimCJKRenderer', () => {
 
       expect(strokes[0].stroke).toBe(data.strokes[0]);
     });
+
+    it('should set and clear opacity transition', () => {
+      const data = makeCharacterData(kanjiSvg);
+      const strokes = renderer.render(data);
+
+      strokes[0].setOpacityTransition(0.3, 'linear');
+      expect(strokes[0].element.style.transition).toContain('opacity');
+      expect(strokes[0].element.style.transition).toContain('0.3s');
+
+      strokes[0].clearOpacityTransition();
+      expect(strokes[0].element.style.transition).toBe('none');
+    });
   });
 
   describe('clear', () => {
@@ -242,6 +271,17 @@ describe('AnimCJKRenderer', () => {
       const strokes = renderer.render(data);
       expect(strokes).toHaveLength(6);
       expect(container.querySelector('svg')).not.toBeNull();
+    });
+  });
+
+  describe('dispose', () => {
+    it('should remove SVG from container', () => {
+      const data = makeCharacterData(kanjiSvg);
+      renderer.render(data);
+      expect(container.querySelector('svg')).not.toBeNull();
+
+      renderer.dispose();
+      expect(container.querySelector('svg')).toBeNull();
     });
   });
 
