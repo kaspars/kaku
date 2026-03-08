@@ -483,10 +483,11 @@
       basePath: 'https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji',
     });
 
+    const animcjkBase = 'https://raw.githubusercontent.com/parsimonhi/animCJK/master';
     const animcjkProviders = {
-      ja: new AnimCJKProvider({ basePath: './animCJK', language: 'ja' }),
-      'zh-Hans': new AnimCJKProvider({ basePath: './animCJK', language: 'zh-Hans' }),
-      'zh-Hant': new AnimCJKProvider({ basePath: './animCJK', language: 'zh-Hant' }),
+      ja: new AnimCJKProvider({ basePath: animcjkBase, language: 'ja' }),
+      'zh-Hans': new AnimCJKProvider({ basePath: animcjkBase, language: 'zh-Hans' }),
+      'zh-Hant': new AnimCJKProvider({ basePath: animcjkBase, language: 'zh-Hant' }),
     };
 
     // Preset characters per provider + character class
