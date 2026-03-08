@@ -111,6 +111,20 @@
       font-size: 1.2rem;
       z-index: 200;
     }
+
+    #crosshair {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 1.6rem;
+      font-weight: bold;
+      z-index: 150;
+      pointer-events: none;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+    }
   </style>
 </head>
 <body>
@@ -153,7 +167,13 @@
 
     <div class="toolbar-field">
       <label for="spawnToggle">
-        <input type="checkbox" id="spawnToggle"> Spawn
+        <input type="checkbox" id="spawnToggle" checked> Spawn
+      </label>
+    </div>
+
+    <div class="toolbar-field">
+      <label for="shooterToggle">
+        <input type="checkbox" id="shooterToggle" checked> Shooter
       </label>
     </div>
 
@@ -185,6 +205,8 @@
   <div id="instructions">
     Arrow keys or WASD to move &middot; Space to jump &middot; Click to look around &middot; Escape to release mouse
   </div>
+
+  <div id="crosshair">+</div>
 
   <div id="loading">Loading font...</div>
 
@@ -277,6 +299,8 @@
     const depthSelect = document.getElementById('depthSelect');
     const colorSelect = document.getElementById('colorSelect');
     const spawnToggle = document.getElementById('spawnToggle');
+    const shooterToggle = document.getElementById('shooterToggle');
+    const crosshairEl = document.getElementById('crosshair');
     const errorEl = document.getElementById('error');
     const loadingEl = document.getElementById('loading');
 
@@ -370,7 +394,9 @@
     // --- Spawner ---
 
     const MAX_SPAWNED = 10;
-    const SPAWN_INTERVAL = 10_000; // ms
+    const SPAWN_INTERVAL = 5_000; // ms
+    const FADE_IN_DURATION = 1.0; // seconds
+    const fadingInModels = new Map(); // model -> { timer, materials[] }
     const MIN_SPAWN_DISTANCE = 150; // minimum distance between spawned characters
     let spawnTimer = null;
     /** Positions of spawned characters (updated each spawn) */
@@ -423,6 +449,18 @@
         spawnedChars.add(char);
         scene3d.setEffect(effectSelect.value);
         scene3d.addModel(model, position);
+        // Start fade-in: set transparent, then animate opacity
+        const mats = [];
+        const seen = new Set();
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material && !seen.has(child.material)) {
+            seen.add(child.material);
+            child.material.transparent = true;
+            child.material.opacity = 0;
+            mats.push(child.material);
+          }
+        });
+        fadingInModels.set(model, { timer: 0, materials: mats });
       } catch (err) {
         console.warn('Spawn error:', err);
       }
@@ -441,6 +479,197 @@
         spawnTimer = null;
       }
     }
+
+    // --- Shooter ---
+
+    let shooterEnabled = false;
+    const projectiles = [];
+    const modelHealth = new Map();
+    const PROJECTILE_SPEED = 800;
+    const PROJECTILE_MAX_DIST = 1500;
+    const HIT_RADIUS = 60;
+    const MAX_HEALTH = 3;
+    const FLASH_DURATION = 0.15;
+    const flashingModels = new Map(); // model -> { timer, meshes[] }
+
+    // Projectile geometry/material (shared)
+    const projGeometry = new THREE.CapsuleGeometry(1.5, 6, 4, 8);
+    const projMaterial = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+
+    function playPiuSound() {
+      const ctx = scene3d.renderer.domElement.closest('body') && window.AudioContext
+        ? new AudioContext() : null;
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, now);
+      osc.frequency.exponentialRampToValueAtTime(400, now + 0.12);
+
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.2);
+
+      // Clean up context after sound finishes
+      setTimeout(() => ctx.close(), 500);
+    }
+
+    function shoot() {
+      if (!shooterEnabled) return;
+
+      playPiuSound();
+
+      // Create projectile
+      const mesh = new THREE.Mesh(projGeometry, projMaterial);
+      const dir = new THREE.Vector3();
+      scene3d.camera.getWorldDirection(dir);
+
+      mesh.position.copy(scene3d.camera.position).addScaledVector(dir, 20);
+      // Align capsule with travel direction
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+      scene3d.scene.add(mesh);
+      projectiles.push({
+        mesh,
+        direction: dir.clone(),
+        traveled: 0,
+      });
+    }
+
+    function updateProjectiles(delta) {
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        const step = PROJECTILE_SPEED * delta;
+        p.mesh.position.addScaledVector(p.direction, step);
+        p.traveled += step;
+
+        // Check hits against character models
+        let hit = false;
+        for (const model of scene3d.getModels()) {
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          const dist = p.mesh.position.distanceTo(center);
+          if (dist < HIT_RADIUS) {
+            hit = true;
+            onHit(model);
+            break;
+          }
+        }
+
+        if (hit || p.traveled > PROJECTILE_MAX_DIST) {
+          scene3d.scene.remove(p.mesh);
+          projectiles.splice(i, 1);
+        }
+      }
+
+      // Update flash effects — fade color back to original
+      for (const [model, flash] of flashingModels) {
+        flash.timer -= delta;
+        const t = Math.max(0, flash.timer / FLASH_DURATION);
+        for (const { material, origColor, hitColor } of flash.materials) {
+          material.color.copy(origColor).lerp(hitColor, t);
+        }
+        if (flash.timer <= 0) {
+          for (const { material, origColor } of flash.materials) {
+            material.color.copy(origColor);
+          }
+          flashingModels.delete(model);
+        }
+      }
+    }
+
+    function onHit(model) {
+      const health = (modelHealth.get(model) ?? MAX_HEALTH) - 1;
+      modelHealth.set(model, health);
+
+      // Flash — tint the model's color toward reddish, then fade back
+      // All meshes in a character share one material, so deduplicate
+      const red = new THREE.Color(0xcc4422);
+      const existing = flashingModels.get(model);
+      if (existing) {
+        for (const { material, origColor } of existing.materials) {
+          material.color.copy(origColor);
+        }
+      }
+      const seen = new Set();
+      const materials = [];
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material?.color && !seen.has(child.material)) {
+          seen.add(child.material);
+          const origColor = child.material.color.clone();
+          const hitColor = origColor.clone().lerp(red, 0.35);
+          materials.push({ material: child.material, origColor, hitColor });
+          child.material.color.copy(hitColor);
+        }
+      });
+      flashingModels.set(model, { timer: FLASH_DURATION, materials });
+
+      if (health <= 0) {
+        // Remove after brief flash
+        setTimeout(() => {
+          modelHealth.delete(model);
+          flashingModels.delete(model);
+          scene3d.removeModel(model);
+        }, FLASH_DURATION * 1000);
+      }
+    }
+
+    // Effects update loop (fade-in, projectiles, hit flash)
+    const effectsClock = new THREE.Clock(true);
+    function effectsLoop() {
+      requestAnimationFrame(effectsLoop);
+      const delta = effectsClock.getDelta();
+      if (shooterEnabled) {
+        updateProjectiles(delta);
+      }
+      // Fade-in spawned models
+      for (const [model, fade] of fadingInModels) {
+        fade.timer += delta;
+        const t = Math.min(1, fade.timer / FADE_IN_DURATION);
+        for (const mat of fade.materials) {
+          mat.opacity = t;
+        }
+        if (t >= 1) {
+          for (const mat of fade.materials) {
+            mat.transparent = false;
+            mat.opacity = 1;
+          }
+          fadingInModels.delete(model);
+        }
+      }
+    }
+    effectsLoop();
+
+    function enableShooter() {
+      shooterEnabled = true;
+      crosshairEl.style.display = 'block';
+    }
+
+    function disableShooter() {
+      shooterEnabled = false;
+      crosshairEl.style.display = 'none';
+      // Clean up projectiles
+      for (const p of projectiles) {
+        scene3d.scene.remove(p.mesh);
+      }
+      projectiles.length = 0;
+    }
+
+    // Shoot on click when pointer is locked
+    document.addEventListener('mousedown', (e) => {
+      if (!shooterEnabled) return;
+      if (document.pointerLockElement === scene3d.renderer.domElement) {
+        shoot();
+      }
+    });
 
     // --- Event listeners ---
 
@@ -466,12 +695,21 @@
         stopSpawning();
       }
     });
+    shooterToggle.addEventListener('change', () => {
+      if (shooterToggle.checked) {
+        enableShooter();
+      } else {
+        disableShooter();
+      }
+    });
 
     // --- Init ---
 
     populateFonts();
     populateCharacters();
     loadCharacter();
+    startSpawning();
+    enableShooter();
   </script>
 </body>
 </html>

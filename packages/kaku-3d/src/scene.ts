@@ -20,6 +20,10 @@ export interface Kaku3DScene {
   setEffect(effect: AnimationEffect): void;
   /** Get the number of models in the scene */
   getModelCount(): number;
+  /** Get all character models */
+  getModels(): THREE.Group[];
+  /** Remove a single character model */
+  removeModel(model: THREE.Group): void;
   /** Get the ground half-size */
   getGroundHalfSize(): number;
   /** Remove all character models */
@@ -190,7 +194,7 @@ export function createScene(options: SceneOptions): Kaku3DScene {
   scene.add(hemisphereLight);
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-  directionalLight.position.set(100, 200, 100);
+  directionalLight.position.set(100, halfGround, 100);
   directionalLight.castShadow = true;
   directionalLight.shadow.mapSize.width = 4096;
   directionalLight.shadow.mapSize.height = 4096;
@@ -315,12 +319,33 @@ export function createScene(options: SceneOptions): Kaku3DScene {
       updateObstacles();
     },
 
-    /** Get the number of models currently in the scene */
     getModelCount() {
       return models.length;
     },
 
-    /** Get the ground half-size for spawn position calculations */
+    getModels() {
+      return [...models];
+    },
+
+    removeModel(model: THREE.Group) {
+      const idx = models.indexOf(model);
+      if (idx < 0) return;
+      models.splice(idx, 1);
+      animator.removeModel(model);
+      scene.remove(model);
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
+      updateObstacles();
+    },
+
     getGroundHalfSize() {
       return halfGround;
     },
