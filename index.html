@@ -396,13 +396,19 @@
 
     <!-- Practice Tab -->
     <div class="tab-panel" id="tab-practice">
-      <div class="presets">
-        <button onclick="loadPractice('漢')">漢</button>
-        <button onclick="loadPractice('字')">字</button>
-        <button onclick="loadPractice('学')">学</button>
-        <button onclick="loadPractice('書')">書</button>
-        <button onclick="loadPractice('愛')">愛</button>
+      <div class="setting-row" style="margin-bottom: 1rem;">
+        <label for="practiceProviderSelect">Provider:</label>
+        <select id="practiceProviderSelect">
+          <option value="kanjivg">KanjiVG</option>
+          <option value="animcjk">AnimCJK</option>
+        </select>
+        <label for="practiceCharClassSelect">Characters:</label>
+        <select id="practiceCharClassSelect">
+          <option value="ja">Japanese</option>
+        </select>
       </div>
+
+      <div class="presets" id="practicePresets"></div>
 
       <div class="character-input">
         <input type="text" id="practiceCharInput" maxlength="1" placeholder="Enter character" value="字">
@@ -415,8 +421,8 @@
 
       <div class="settings" style="margin-bottom: 1rem;">
         <div class="setting-row">
-          <label for="guideCheckbox">Show guidelines:</label>
-          <input type="checkbox" id="guideCheckbox" checked>
+          <label for="practiceOutlineCheckbox">Show outlines:</label>
+          <input type="checkbox" id="practiceOutlineCheckbox" checked>
         </div>
       </div>
 
@@ -704,6 +710,8 @@
     // ==============================
     let practiceKaku = null;
     let practiceRen = null;
+    window.practiceProvider = 'kanjivg';
+    window.practiceCharClass = 'ja';
 
     const feedbackEl = document.getElementById('practiceFeedback');
     const scoreBar = document.getElementById('practiceScoreBar');
@@ -726,6 +734,42 @@
       feedbackEl.className = 'practice-feedback ' + className;
     }
 
+    function getPracticeProvider() {
+      if (window.practiceProvider === 'kanjivg') return kanjivgProvider;
+      return animcjkProviders[window.practiceCharClass];
+    }
+
+    function createPracticeRenderer(size) {
+      if (window.practiceProvider === 'animcjk') {
+        return new AnimCJKRenderer({
+          container: document.getElementById('practice-canvas'),
+          width: size,
+          height: size,
+        });
+      }
+      return undefined;
+    }
+
+    function updatePracticeCharClassOptions() {
+      const select = document.getElementById('practiceCharClassSelect');
+      const classes = Object.keys(presets[window.practiceProvider]);
+      select.innerHTML = classes.map(cls =>
+        `<option value="${cls}"${cls === window.practiceCharClass ? ' selected' : ''}>${charClassLabels[cls]}</option>`
+      ).join('');
+      if (!classes.includes(window.practiceCharClass)) {
+        window.practiceCharClass = classes[0];
+        select.value = window.practiceCharClass;
+      }
+    }
+
+    function updatePracticePresetButtons() {
+      const container = document.getElementById('practicePresets');
+      const chars = presets[window.practiceProvider][window.practiceCharClass] || [];
+      container.innerHTML = chars.map(ch =>
+        `<button onclick="loadPractice('${ch}')">${ch}</button>`
+      ).join('');
+    }
+
     window.loadPractice = async function(char) {
       document.getElementById('practiceError').textContent = '';
       document.getElementById('practiceCharInput').value = char;
@@ -745,10 +789,13 @@
       }
 
       try {
-        // Create a Kaku instance with dark strokes — accepted strokes appear here
         const size = getCanvasSize();
-        practiceKaku = new Kaku({
-          provider: kanjivgProvider,
+        const isAnimCJK = window.practiceProvider === 'animcjk';
+        const provider = getPracticeProvider();
+        const renderer = createPracticeRenderer(size);
+
+        const kakuOptions = {
+          provider,
           container: document.getElementById('practice-canvas'),
           width: size,
           height: size,
@@ -756,23 +803,30 @@
           strokeWidth: 4,
           showGrid: true,
           gridColor: '#e0e0e0',
+          showOutline: document.getElementById('practiceOutlineCheckbox').checked,
           animation: {
             autoplay: false,
             strokeEffect: 'none',
             strokeDuration: 0,
           }
-        });
+        };
 
+        if (renderer) kakuOptions.renderer = renderer;
+
+        practiceKaku = new Kaku(kakuOptions);
         await practiceKaku.load(char);
 
-        // Overlay KakuRen for practice (guide + stroke width computed automatically)
+        // Overlay KakuRen for practice
+        // Outlines are handled by Kaku's showOutline, not KakuRen's guide
+        // For AnimCJK: explicit stroke width since SVG stroke-width (128) is too thick
         practiceRen = new KakuRen({
           kaku: practiceKaku,
           container: document.getElementById('practice-canvas'),
           width: size,
           height: size,
           strokeColor: '#333',
-          showGuide: document.getElementById('guideCheckbox').checked,
+          showGuide: false,
+          strokeWidth: isAnimCJK ? 10 : undefined,
           onAccept(index, result) {
             const pct = Math.round(result.score * 100);
             showFeedback(`Stroke ${index + 1} accepted (${pct}%)`, 'accept');
@@ -826,15 +880,34 @@
       }
     };
 
-    document.getElementById('guideCheckbox').addEventListener('change', (e) => {
-      if (practiceRen) {
-        practiceRen.guide = e.target.checked;
-      }
+    document.getElementById('practiceProviderSelect').addEventListener('change', (e) => {
+      window.practiceProvider = e.target.value;
+      updatePracticeCharClassOptions();
+      updatePracticePresetButtons();
+      const chars = presets[window.practiceProvider][window.practiceCharClass];
+      loadPractice(chars[0]);
+    });
+
+    document.getElementById('practiceCharClassSelect').addEventListener('change', (e) => {
+      window.practiceCharClass = e.target.value;
+      updatePracticePresetButtons();
+      const chars = presets[window.practiceProvider][window.practiceCharClass];
+      loadPractice(chars[0]);
+    });
+
+    document.getElementById('practiceOutlineCheckbox').addEventListener('change', (e) => {
+      // Reload to apply showOutline change
+      const char = document.getElementById('practiceCharInput').value.trim();
+      if (char) loadPractice(char);
     });
 
     document.getElementById('practiceCharInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') loadPracticeFromInput();
     });
+
+    // Initialize practice provider UI
+    updatePracticeCharClassOptions();
+    updatePracticePresetButtons();
 
     // Activate initial tab (must be after all functions are defined)
     switchTab(initialTab);

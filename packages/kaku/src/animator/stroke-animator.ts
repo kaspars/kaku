@@ -50,6 +50,13 @@ export class StrokeAnimator implements Animator {
   }
 
   /**
+   * Get the rendered stroke objects
+   */
+  getStrokes(): RenderedStroke[] {
+    return this.strokes;
+  }
+
+  /**
    * Initialize with rendered strokes
    */
   setStrokes(strokes: RenderedStroke[]): void {

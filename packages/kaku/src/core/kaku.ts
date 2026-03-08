@@ -202,6 +202,13 @@ export class Kaku {
   }
 
   /**
+   * Get the rendered stroke objects (for external control)
+   */
+  getRenderedStrokes(): RenderedStroke[] {
+    return this.animator.getStrokes();
+  }
+
+  /**
    * Dispose instance and clean up
    */
   dispose(): void {

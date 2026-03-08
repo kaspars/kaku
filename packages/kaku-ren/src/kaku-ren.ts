@@ -23,9 +23,15 @@ export interface KakuRenOptions {
   evaluation?: EvaluatorOptions;
   /** Duration of morph animation in ms (default: 80) */
   morphDuration?: number;
-  /** Show faint guide strokes behind the drawing area (default: true) */
+  /**
+   * @deprecated Use Kaku's showOutline option instead.
+   * Show faint guide strokes behind the drawing area (default: false)
+   */
   showGuide?: boolean;
-  /** Color of guide strokes (default: '#ddd') */
+  /**
+   * @deprecated Use Kaku's outlineColor option instead.
+   * Color of guide strokes (default: '#ddd')
+   */
   guideColor?: string;
   /** Called when a stroke is accepted */
   onAccept?: (index: number, result: EvaluationResult) => void;
@@ -413,49 +419,27 @@ export class KakuRen {
   }
 
   /**
-   * Show a hint by briefly animating the next expected stroke.
+   * Show a hint by briefly flashing the rendered stroke.
    */
   private async showHint(
     strokeIndex: number,
-    charData: CharacterData,
-    scaleFactor: number,
+    _charData: CharacterData,
+    _scaleFactor: number,
   ): Promise<void> {
-    const stroke = charData.strokes[strokeIndex];
-    const N = this.evaluationOptions.sampleCount ?? 50;
-    const { points: sampledPoints } = this.getSampledPoints(stroke.pathData, N);
+    const renderedStrokes = this.kaku.getRenderedStrokes();
+    const rendered = renderedStrokes[strokeIndex];
+    if (!rendered) return;
 
-    // Convert to canvas space
-    const points = sampledPoints.map(p => ({
-      x: p.x * scaleFactor,
-      y: p.y * scaleFactor,
-    }));
+    // Flash: show the stroke at half opacity, hold, then hide
+    rendered.setOpacity(0.3);
+    rendered.setProgress(1);
 
-    // Animate drawing the hint stroke progressively
-    const duration = 500;
-    const startTime = performance.now();
-
-    return new Promise((resolve) => {
-      const animate = (now: number) => {
-        const elapsed = now - startTime;
-        const t = Math.min(1, elapsed / duration);
-        const count = Math.max(2, Math.round(t * points.length));
-        const visible = points.slice(0, count);
-
-        this.input.clear();
-        this.input.drawPoints(visible, 'rgba(100, 100, 100, 0.3)');
-
-        if (t < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          // Hold briefly then clear
-          setTimeout(() => {
-            this.input.clear();
-            resolve();
-          }, 300);
-        }
-      };
-
-      requestAnimationFrame(animate);
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        rendered.setProgress(0);
+        rendered.setOpacity(1);
+        resolve();
+      }, 800);
     });
   }
 

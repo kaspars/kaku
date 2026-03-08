@@ -38,6 +38,17 @@ function makeMockKaku(strokeCount = 3) {
     metadata: { index: i },
   }));
 
+  // Create mock RenderedStroke objects for getRenderedStrokes
+  const renderedStrokes = strokes.map(() => ({
+    element: document.createElementNS('http://www.w3.org/2000/svg', 'path'),
+    setProgress: vi.fn(),
+    setOpacity: vi.fn(),
+    setTransition: vi.fn(),
+    clearTransition: vi.fn(),
+    setOpacityTransition: vi.fn(),
+    clearOpacityTransition: vi.fn(),
+  }));
+
   const mock = {
     get currentStroke() { return currentStroke; },
     totalStrokes: strokeCount,
@@ -57,6 +68,7 @@ function makeMockKaku(strokeCount = 3) {
       svg.appendChild(path);
       return svg;
     }),
+    getRenderedStrokes: vi.fn(() => renderedStrokes),
     state: 'idle' as const,
     character: '字',
     dispose: vi.fn(),
