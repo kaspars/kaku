@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type AnimationEffect = 'static' | 'wandering' | 'jumpy';
+export type AnimationEffect = 'static' | 'wandering' | 'jumpy' | 'leap';
 
 export interface CharacterAnimator {
   /** Update all animations each frame */
@@ -30,9 +30,24 @@ interface WanderState {
   lastStepHalf: number;
 }
 
+interface LeapState {
+  heading: number;
+  targetHeading: number;
+  phase: 'idle' | 'turning' | 'crouch' | 'airborne' | 'land';
+  timer: number;
+  /** Walk phase for the turning step */
+  turnWalkPhase: number;
+  leapSpeed: number;
+  leapHeight: number;
+  airTime: number;
+  airElapsed: number;
+  crouchDuration: number;
+}
+
 interface AnimatedEntry {
   model: THREE.Group;
   wander: WanderState | null;
+  leap: LeapState | null;
   audio: THREE.PositionalAudio | null;
 }
 
@@ -249,30 +264,225 @@ export function createAnimator(options: {
     }
   }
 
+  function createLeapState(): LeapState {
+    const heading = Math.random() * Math.PI * 2;
+    return {
+      heading,
+      targetHeading: heading,
+      phase: 'idle',
+      timer: 1 + Math.random() * 2,
+      turnWalkPhase: 0,
+      leapSpeed: 0,
+      leapHeight: 0,
+      airTime: 0,
+      airElapsed: 0,
+      crouchDuration: 0,
+    };
+  }
+
+  function rollLeapParams(leap: LeapState) {
+    // Wide range of leap sizes — small hops to big bounds
+    const size = Math.random(); // 0 = tiny hop, 1 = big leap
+    leap.leapHeight = 15 + size * 60;          // 15–75
+    leap.leapSpeed = 80 + size * 140;           // 80–220
+    leap.airTime = 0.35 + size * 0.4;           // 0.35–0.75s
+    leap.crouchDuration = 0.25 + size * 0.25;   // 0.25–0.5s (bigger leap = longer windup)
+  }
+
+  function updateLeapEntry(entry: AnimatedEntry, delta: number) {
+    const { model, leap } = entry;
+    if (!leap) return;
+
+    leap.timer -= delta;
+
+    switch (leap.phase) {
+      case 'idle': {
+        // Gentle breathing — subtle sway and scale pulse
+        const breath = Math.sin(Date.now() * 0.0025);
+        model.rotation.z = breath * 0.015;
+        model.rotation.x = 0;
+        model.position.y = 0;
+        model.scale.setScalar(1);
+        model.rotation.y = Math.PI + leap.heading;
+
+        if (leap.timer <= 0) {
+          // Pick new direction and start turning toward it
+          const turnAmount = (Math.PI / 6) + Math.random() * (Math.PI * 0.8);
+          const sign = Math.random() < 0.5 ? 1 : -1;
+          leap.targetHeading = leap.heading + sign * turnAmount;
+          leap.phase = 'turning';
+          leap.turnWalkPhase = 0;
+          rollLeapParams(leap);
+        }
+        break;
+      }
+
+      case 'turning': {
+        // Step-turn toward target heading using walk-like motion
+        let diff = leap.targetHeading - leap.heading;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+
+        const turnRate = 2.5;
+        const maxTurn = turnRate * delta;
+        if (Math.abs(diff) < maxTurn) {
+          leap.heading = leap.targetHeading;
+        } else {
+          leap.heading += Math.sign(diff) * maxTurn;
+        }
+
+        // Walk-like stepping during turn
+        leap.turnWalkPhase += delta * 2.5;
+        const phase = leap.turnWalkPhase * Math.PI * 2;
+        model.rotation.z = Math.sin(phase) * 0.06;
+        model.rotation.y = Math.PI + leap.heading;
+        model.position.y = Math.abs(Math.sin(phase)) * 2;
+
+
+        // Small forward movement during turn
+        model.position.x += Math.sin(leap.heading) * 12 * delta;
+        model.position.z += Math.cos(leap.heading) * 12 * delta;
+
+        // Done turning — transition to crouch
+        if (Math.abs(diff) < 0.05) {
+          leap.phase = 'crouch';
+          leap.timer = leap.crouchDuration;
+          model.rotation.z = 0;
+          model.position.y = 0;
+        }
+        break;
+      }
+
+      case 'crouch': {
+        // Squash and stretch: compress Y, expand XZ (volume preservation)
+        const t = 1 - (leap.timer / leap.crouchDuration); // 0 → 1
+        const eased = t * t; // ease-in for building tension
+        const squashY = 1 - eased * 0.3;     // 1.0 → 0.7
+        const stretchXZ = 1 + eased * 0.15;  // 1.0 → 1.15
+        model.scale.set(stretchXZ, squashY, stretchXZ);
+
+        // Lean forward progressively
+        model.rotation.x = eased * 0.2;
+        model.rotation.y = Math.PI + leap.heading;
+        model.rotation.z = 0;
+        model.position.y = 0;
+
+        if (leap.timer <= 0) {
+          leap.phase = 'airborne';
+          leap.airElapsed = 0;
+          // Snap to stretched shape for launch
+          model.scale.set(0.9, 1.2, 0.9);
+        }
+        break;
+      }
+
+      case 'airborne': {
+        leap.airElapsed += delta;
+        const t = Math.min(1, leap.airElapsed / leap.airTime);
+
+        // Parabolic arc
+        model.position.y = 4 * leap.leapHeight * t * (1 - t);
+
+        // Forward movement
+        model.position.x += Math.sin(leap.heading) * leap.leapSpeed * delta;
+        model.position.z += Math.cos(leap.heading) * leap.leapSpeed * delta;
+
+        // Stretch tall at launch, normalize mid-flight, squash on approach
+        let scaleY: number, scaleXZ: number;
+        if (t < 0.2) {
+          // Launch stretch
+          const lt = t / 0.2;
+          scaleY = 1.2 - lt * 0.2;    // 1.2 → 1.0
+          scaleXZ = 0.9 + lt * 0.1;   // 0.9 → 1.0
+        } else if (t > 0.8) {
+          // Pre-landing squash
+          const lt = (t - 0.8) / 0.2;
+          scaleY = 1.0 - lt * 0.2;    // 1.0 → 0.8
+          scaleXZ = 1.0 + lt * 0.1;   // 1.0 → 1.1
+        } else {
+          scaleY = 1.0;
+          scaleXZ = 1.0;
+        }
+        model.scale.set(scaleXZ, scaleY, scaleXZ);
+
+        // Tilt: lean forward on ascent, lean back slightly on descent
+        model.rotation.x = t < 0.5 ? 0.12 * (1 - t * 2) : -0.05 * ((t - 0.5) * 2);
+        model.rotation.y = Math.PI + leap.heading;
+        model.rotation.z = 0;
+
+        // Boundary
+        const margin = 100;
+        const limit = boundsHalfSize - margin;
+        if (Math.abs(model.position.x) > limit || Math.abs(model.position.z) > limit) {
+          model.position.x = Math.max(-limit, Math.min(limit, model.position.x));
+          model.position.z = Math.max(-limit, Math.min(limit, model.position.z));
+          leap.heading = Math.atan2(-model.position.x, -model.position.z);
+        }
+
+        if (t >= 1) {
+          leap.phase = 'land';
+          leap.timer = 0.2;
+          model.position.y = 0;
+          model.scale.set(1.15, 0.75, 1.15); // landing squash
+          playFootstep(entry);
+        }
+        break;
+      }
+
+      case 'land': {
+        // Recover from squash back to normal
+        const t = 1 - (leap.timer / 0.2); // 0 → 1
+        const eased = t * (2 - t); // ease-out
+        const scaleY = 0.75 + eased * 0.25;
+        const scaleXZ = 1.15 - eased * 0.15;
+        model.scale.set(scaleXZ, scaleY, scaleXZ);
+        model.rotation.x = 0.05 * (1 - eased);
+        model.position.y = 0;
+
+        if (leap.timer <= 0) {
+          leap.phase = 'idle';
+          leap.timer = 1.5 + Math.random() * 3.5;
+          model.scale.setScalar(1);
+          model.rotation.x = 0;
+        }
+        break;
+      }
+    }
+  }
+
   function initEntry(entry: AnimatedEntry) {
     if (effect === 'wandering' || effect === 'jumpy') {
       entry.wander = createWanderState();
+      entry.leap = null;
+      if (audioListener) attachAudio(entry);
+    } else if (effect === 'leap') {
+      entry.wander = null;
+      entry.leap = createLeapState();
       if (audioListener) attachAudio(entry);
     } else {
       entry.wander = null;
+      entry.leap = null;
       detachAudio(entry);
     }
   }
 
   const COLLISION_RADIUS = 60;
 
+  function isMoving(entry: AnimatedEntry): boolean {
+    return !!(entry.wander || entry.leap);
+  }
+
   function resolveCollisions() {
     for (let i = 0; i < entries.length; i++) {
       const a = entries[i];
-      if (!a.wander) continue;
+      if (!isMoving(a)) continue;
       for (let j = i + 1; j < entries.length; j++) {
         const b = entries[j];
-        if (!b.wander) continue;
+        if (!isMoving(b)) continue;
         const dx = a.model.position.x - b.model.position.x;
         const dz = a.model.position.z - b.model.position.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist < COLLISION_RADIUS && dist > 0) {
-          // Push apart equally
           const overlap = (COLLISION_RADIUS - dist) / 2;
           const nx = dx / dist;
           const nz = dz / dist;
@@ -280,9 +490,11 @@ export function createAnimator(options: {
           a.model.position.z += nz * overlap;
           b.model.position.x -= nx * overlap;
           b.model.position.z -= nz * overlap;
-          // Steer away from each other
-          a.wander.targetHeading = Math.atan2(nx, nz);
-          b.wander.targetHeading = Math.atan2(-nx, -nz);
+          // Steer away
+          if (a.wander) a.wander.targetHeading = Math.atan2(nx, nz);
+          if (a.leap) a.leap.heading = Math.atan2(nx, nz);
+          if (b.wander) b.wander.targetHeading = Math.atan2(-nx, -nz);
+          if (b.leap) b.leap.heading = Math.atan2(-nx, -nz);
         }
       }
     }
@@ -292,7 +504,11 @@ export function createAnimator(options: {
     update(delta: number) {
       if (effect === 'static') return;
       for (const entry of entries) {
-        updateEntry(entry, delta);
+        if (entry.leap) {
+          updateLeapEntry(entry, delta);
+        } else {
+          updateEntry(entry, delta);
+        }
       }
       resolveCollisions();
     },
@@ -302,7 +518,7 @@ export function createAnimator(options: {
       if (eff === 'wandering' || eff === 'jumpy') {
         style = WALK_STYLES[eff];
       }
-      const entry: AnimatedEntry = { model, wander: null, audio: null };
+      const entry: AnimatedEntry = { model, wander: null, leap: null, audio: null };
       entries.push(entry);
       initEntry(entry);
     },
