@@ -1,6 +1,7 @@
 import type {
   DataProvider,
   CharacterData,
+  Renderer,
   AnimatorOptions,
   AnimationState,
   AnimationEventType,
@@ -20,6 +21,8 @@ export interface KakuOptions {
   provider: DataProvider;
   /** Container element to render into */
   container: HTMLElement;
+  /** Custom renderer (defaults to SvgRenderer) */
+  renderer?: Renderer;
   /** Width of the SVG (CSS value) */
   width?: number | string;
   /** Height of the SVG (CSS value) */
@@ -32,6 +35,10 @@ export interface KakuOptions {
   showGrid?: boolean;
   /** Grid line color */
   gridColor?: string;
+  /** Show character outline (all strokes as faint background) */
+  showOutline?: boolean;
+  /** Outline color (default: '#ccc') */
+  outlineColor?: string;
   /** Animation options */
   animation?: AnimatorOptions;
 }
@@ -41,7 +48,7 @@ export interface KakuOptions {
  */
 export class Kaku {
   private provider: DataProvider;
-  private renderer: SvgRenderer;
+  private renderer: Renderer;
   private animator: StrokeAnimator;
   private renderOptions: RenderOptions;
   private characterData: CharacterData | null = null;
@@ -50,7 +57,7 @@ export class Kaku {
   constructor(options: KakuOptions) {
     this.provider = options.provider;
 
-    this.renderer = new SvgRenderer({
+    this.renderer = options.renderer ?? new SvgRenderer({
       container: options.container,
       width: options.width,
       height: options.height,
@@ -63,6 +70,8 @@ export class Kaku {
       strokeWidth: options.strokeWidth,
       showGrid: options.showGrid,
       gridColor: options.gridColor,
+      showOutline: options.showOutline,
+      outlineColor: options.outlineColor,
     };
   }
 

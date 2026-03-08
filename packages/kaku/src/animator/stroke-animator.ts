@@ -316,10 +316,14 @@ export class StrokeAnimator implements Animator {
       });
 
       if (this.loop) {
+        // Wait, then reset (showing clean pad), then wait again before replaying
+        const halfDelay = (this.loopDelay * 1000) / 2;
         this.animationTimeout = setTimeout(() => {
           this.reset();
-          this.play();
-        }, this.loopDelay * 1000);
+          this.animationTimeout = setTimeout(() => {
+            this.play();
+          }, halfDelay);
+        }, halfDelay);
       }
       return;
     }

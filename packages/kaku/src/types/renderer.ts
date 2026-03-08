@@ -12,6 +12,10 @@ export interface RenderOptions {
   showGrid?: boolean;
   /** Grid line color */
   gridColor?: string;
+  /** Show character outline (all strokes as faint background) */
+  showOutline?: boolean;
+  /** Outline color (default: '#ccc') */
+  outlineColor?: string;
 }
 
 /**

@@ -324,13 +324,19 @@
 
     <!-- Animation Tab -->
     <div class="tab-panel active" id="tab-animation">
-      <div class="presets">
-        <button onclick="loadCharacter('漢')">漢</button>
-        <button onclick="loadCharacter('字')">字</button>
-        <button onclick="loadCharacter('学')">学</button>
-        <button onclick="loadCharacter('書')">書</button>
-        <button onclick="loadCharacter('愛')">愛</button>
+      <div class="setting-row" style="margin-bottom: 1rem;">
+        <label for="providerSelect">Provider:</label>
+        <select id="providerSelect">
+          <option value="kanjivg">KanjiVG</option>
+          <option value="animcjk">AnimCJK</option>
+        </select>
+        <label for="charClassSelect">Characters:</label>
+        <select id="charClassSelect">
+          <option value="ja">Japanese</option>
+        </select>
       </div>
+
+      <div class="presets" id="animPresets"></div>
 
       <div class="character-input">
         <input type="text" id="charInput" maxlength="1" placeholder="Enter character" value="漢">
@@ -357,6 +363,10 @@
       <div class="error" id="error"></div>
 
       <div class="settings">
+        <div class="setting-row">
+          <label for="outlineCheckbox">Show outline:</label>
+          <input type="checkbox" id="outlineCheckbox">
+        </div>
         <div class="setting-row">
           <label for="autoplayCheckbox">Autoplay:</label>
           <input type="checkbox" id="autoplayCheckbox" checked>
@@ -432,7 +442,7 @@
   </div>
 
   <script type="module">
-    import { Kaku, KakuDiagram, KanjiVGProvider } from './packages/kaku/src/index.ts';
+    import { Kaku, KakuDiagram, KanjiVGProvider, AnimCJKProvider, AnimCJKRenderer } from './packages/kaku/src/index.ts';
     import { KakuRen } from './packages/kaku-ren/src/index.ts';
 
     // --- Tab switching ---
@@ -463,9 +473,32 @@
     const initialTab = location.hash.replace('#', '') || 'animation';
 
     // --- Shared ---
-    const provider = new KanjiVGProvider({
+    const kanjivgProvider = new KanjiVGProvider({
       basePath: 'https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji',
     });
+
+    const animcjkProviders = {
+      ja: new AnimCJKProvider({ basePath: './animCJK', language: 'ja' }),
+      'zh-Hans': new AnimCJKProvider({ basePath: './animCJK', language: 'zh-Hans' }),
+      'zh-Hant': new AnimCJKProvider({ basePath: './animCJK', language: 'zh-Hant' }),
+    };
+
+    // Preset characters per provider + character class
+    const presets = {
+      kanjivg: { ja: ['漢', '字', '学', '書', '愛', 'あ', 'ア'] },
+      animcjk: {
+        ja: ['漢', '字', '学', '書', '愛', 'あ', 'ア'],
+        'zh-Hans': ['汉', '字', '学', '书', '爱', '龙', '国'],
+        'zh-Hant': ['漢', '學', '書', '愛', '龍', '國', '體'],
+      },
+    };
+
+    // Character class labels
+    const charClassLabels = {
+      ja: 'Japanese',
+      'zh-Hans': 'Simplified Chinese',
+      'zh-Hant': 'Traditional Chinese',
+    };
 
     // Compute canvas size to fit container, max 300px
     function getCanvasSize() {
@@ -484,9 +517,50 @@
     window.strokeEffect = 'draw';
     window.autoplay = true;
     window.loop = true;
+    window.showOutline = false;
+    window.currentProvider = 'kanjivg';
+    window.currentCharClass = 'ja';
 
+    function getActiveProvider() {
+      if (window.currentProvider === 'kanjivg') return kanjivgProvider;
+      return animcjkProviders[window.currentCharClass];
+    }
+
+    function createRenderer() {
+      if (window.currentProvider === 'animcjk') {
+        return new AnimCJKRenderer({
+          container: document.getElementById('canvas'),
+          width: getCanvasSize(),
+          height: getCanvasSize(),
+        });
+      }
+      return undefined; // Kaku uses SvgRenderer by default
+    }
+
+    function updateCharClassOptions() {
+      const select = document.getElementById('charClassSelect');
+      const classes = Object.keys(presets[window.currentProvider]);
+      select.innerHTML = classes.map(cls =>
+        `<option value="${cls}"${cls === window.currentCharClass ? ' selected' : ''}>${charClassLabels[cls]}</option>`
+      ).join('');
+      // If current class not available, switch to first
+      if (!classes.includes(window.currentCharClass)) {
+        window.currentCharClass = classes[0];
+        select.value = window.currentCharClass;
+      }
+    }
+
+    function updatePresetButtons() {
+      const container = document.getElementById('animPresets');
+      const chars = presets[window.currentProvider][window.currentCharClass] || [];
+      container.innerHTML = chars.map(ch =>
+        `<button onclick="loadCharacter('${ch}')">${ch}</button>`
+      ).join('');
+    }
+
+    // Create diagram (KanjiVG only for now — AnimCJK diagram support would need separate work)
     window.diagram = new KakuDiagram({
-      provider,
+      provider: kanjivgProvider,
       container: document.getElementById('diagram'),
       width: 80,
       height: 80,
@@ -512,7 +586,10 @@
 
       try {
         const size = getCanvasSize();
-        window.kaku = new Kaku({
+        const provider = getActiveProvider();
+        const renderer = createRenderer();
+
+        const kakuOptions = {
           provider,
           container: document.getElementById('canvas'),
           width: size,
@@ -521,6 +598,7 @@
           strokeWidth: 4,
           showGrid: true,
           gridColor: '#e0e0e0',
+          showOutline: window.showOutline,
           animation: {
             strokeDuration: window.strokeDuration,
             strokeEffect: window.strokeEffect,
@@ -528,7 +606,11 @@
             loop: window.loop,
             loopDelay: 1
           }
-        });
+        };
+
+        if (renderer) kakuOptions.renderer = renderer;
+
+        window.kaku = new Kaku(kakuOptions);
 
         kaku.on('start', updateStatus);
         kaku.on('strokeStart', updateStatus);
@@ -541,7 +623,15 @@
         await kaku.load(char);
         updateStatus();
 
-        await window.diagram.load(char);
+        // Diagram only works with KanjiVG provider
+        if (window.currentProvider === 'kanjivg') {
+          document.getElementById('diagram').style.display = '';
+          document.querySelector('#tab-animation h2').style.display = '';
+          await window.diagram.load(char);
+        } else {
+          document.getElementById('diagram').style.display = 'none';
+          document.querySelector('#tab-animation h2').style.display = 'none';
+        }
 
       } catch (err) {
         document.getElementById('error').textContent = err.message;
@@ -558,6 +648,21 @@
       if (e.key === 'Enter') loadFromInput();
     });
 
+    document.getElementById('providerSelect').addEventListener('change', (e) => {
+      window.currentProvider = e.target.value;
+      updateCharClassOptions();
+      updatePresetButtons();
+      const chars = presets[window.currentProvider][window.currentCharClass];
+      loadCharacter(chars[0]);
+    });
+
+    document.getElementById('charClassSelect').addEventListener('change', (e) => {
+      window.currentCharClass = e.target.value;
+      updatePresetButtons();
+      const chars = presets[window.currentProvider][window.currentCharClass];
+      loadCharacter(chars[0]);
+    });
+
     document.getElementById('speedSlider').addEventListener('input', (e) => {
       window.strokeDuration = parseFloat(e.target.value);
       document.getElementById('speedValue').textContent = window.strokeDuration.toFixed(1);
@@ -567,6 +672,12 @@
 
     document.getElementById('effectSelect').addEventListener('change', (e) => {
       window.strokeEffect = e.target.value;
+      const char = document.getElementById('charInput').value.trim();
+      if (char) loadCharacter(char);
+    });
+
+    document.getElementById('outlineCheckbox').addEventListener('change', (e) => {
+      window.showOutline = e.target.checked;
       const char = document.getElementById('charInput').value.trim();
       if (char) loadCharacter(char);
     });
@@ -583,7 +694,9 @@
       if (char) loadCharacter(char);
     });
 
-    // Load initial character
+    // Initialize provider UI and load first character
+    updateCharClassOptions();
+    updatePresetButtons();
     loadCharacter('漢');
 
     // ==============================
@@ -635,7 +748,7 @@
         // Create a Kaku instance with dark strokes — accepted strokes appear here
         const size = getCanvasSize();
         practiceKaku = new Kaku({
-          provider,
+          provider: kanjivgProvider,
           container: document.getElementById('practice-canvas'),
           width: size,
           height: size,

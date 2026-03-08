@@ -138,6 +138,7 @@ export class AnimCJKProvider implements DataProvider {
       viewBox,
       strokes,
       source: this.id,
+      rawSvg: svgText,
     };
   }
 

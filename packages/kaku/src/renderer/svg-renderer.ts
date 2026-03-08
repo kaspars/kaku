@@ -4,7 +4,7 @@ import type {
   RenderOptions,
   CharacterData,
 } from '../types/index.js';
-import { createSvg, createLine, createGroup } from '../utils/svg.js';
+import { createSvg, createPath, createLine, createGroup } from '../utils/svg.js';
 import { createStrokePath } from './stroke-path.js';
 
 /**
@@ -48,6 +48,8 @@ export class SvgRenderer implements Renderer {
       strokeWidth = 3,
       showGrid = false,
       gridColor = '#ccc',
+      showOutline = false,
+      outlineColor = '#ccc',
     } = options;
 
     // Create SVG element
@@ -56,6 +58,22 @@ export class SvgRenderer implements Renderer {
     // Add grid if requested
     if (showGrid) {
       this.addGrid(data.viewBox, gridColor);
+    }
+
+    // Add outline (all strokes fully visible in faint color) behind animated strokes
+    if (showOutline) {
+      const outlineGroup = createGroup();
+      for (const stroke of data.strokes) {
+        const path = createPath(stroke.pathData, {
+          fill: 'none',
+          stroke: outlineColor,
+          'stroke-width': strokeWidth,
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+        });
+        outlineGroup.appendChild(path);
+      }
+      this.svg.appendChild(outlineGroup);
     }
 
     // Create stroke group

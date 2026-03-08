@@ -198,6 +198,7 @@ describe('AnimCJKProvider', () => {
         expect(result.data.codePoints).toEqual([0x5b57]);
         expect(result.data.viewBox).toEqual([0, 0, 1024, 1024]);
         expect(result.data.source).toBe('animcjk');
+        expect(result.data.rawSvg).toBe(kanjiFixture);
         expect(result.data.strokes).toHaveLength(6);
       }
     });

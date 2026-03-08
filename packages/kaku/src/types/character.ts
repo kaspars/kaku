@@ -12,6 +12,8 @@ export interface CharacterData {
   strokes: Stroke[];
   /** Data source identifier */
   source: string;
+  /** Raw SVG content from the provider (for native rendering) */
+  rawSvg?: string;
 }
 
 /**

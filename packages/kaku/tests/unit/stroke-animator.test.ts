@@ -495,8 +495,8 @@ describe('StrokeAnimator', () => {
 
       loopAnimator.play();
       // Complete animation (3 strokes * 500ms = 1500ms)
-      // Plus tiny extra to trigger the 0ms delay timeout
-      await vi.advanceTimersByTimeAsync(1501);
+      // Plus extra to trigger the two-phase loop delay (reset + pause + play)
+      await vi.advanceTimersByTimeAsync(1502);
 
       expect(resetHandler).toHaveBeenCalled();
       expect(loopAnimator.state).toBe('playing');
@@ -520,9 +520,8 @@ describe('StrokeAnimator', () => {
 
       expect(resetHandler).not.toHaveBeenCalled();
 
-      await vi.advanceTimersByTimeAsync(1000); // Wait for delay
-
-      expect(resetHandler).toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500); // First half of delay
+      expect(resetHandler).toHaveBeenCalled(); // Reset fires mid-delay
 
       loopAnimator.dispose();
     });

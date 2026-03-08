@@ -10,9 +10,11 @@ export type { KanjiVGProviderOptions } from './providers/kanjivg-provider.js';
 export { AnimCJKProvider } from './providers/animcjk-provider.js';
 export type { AnimCJKProviderOptions, AnimCJKLanguage } from './providers/animcjk-provider.js';
 
-// Renderer
+// Renderers
 export { SvgRenderer } from './renderer/svg-renderer.js';
 export type { SvgRendererOptions } from './renderer/svg-renderer.js';
+export { AnimCJKRenderer } from './renderer/animcjk-renderer.js';
+export type { AnimCJKRendererOptions } from './renderer/animcjk-renderer.js';
 export { createStrokePath } from './renderer/stroke-path.js';
 export type { StrokePathOptions } from './renderer/stroke-path.js';
 
