@@ -112,6 +112,10 @@ interface EvaluationResult {
 }
 ```
 
+## Credits
+
+Stroke data is provided by [KanjiVG](http://kanjivg.tagaini.net/) (CC BY-SA 3.0) and [AnimCJK](https://github.com/parsimonhi/animCJK) (Arphic PL / LGPL). See the [@kaspars/kaku README](https://www.npmjs.com/package/@kaspars/kaku) for details.
+
 ## License
 
 MIT

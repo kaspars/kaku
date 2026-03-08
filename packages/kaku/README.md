@@ -253,6 +253,13 @@ interface DataProvider {
 
 Requires ES2020+ (modern browsers). Uses CSS transitions, SVG, and async/await.
 
+## Credits
+
+Stroke data is provided by these open-source projects:
+
+- **[KanjiVG](http://kanjivg.tagaini.net/)** by Ulrich Apel — Japanese kanji and kana stroke data. Licensed under [Creative Commons Attribution-Share Alike 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+- **[AnimCJK](https://github.com/parsimonhi/animCJK)** by parsimonhi — Japanese, Chinese, and Korean stroke data with calligraphic outlines. Licensed under [Arphic Public License](https://github.com/ArtifexSoftware/urw-base35-fonts/blob/master/LICENSE) and [LGPL](https://www.gnu.org/licenses/lgpl-3.0.html).
+
 ## License
 
 MIT

@@ -35,6 +35,10 @@ npm run test:coverage    # Run all tests with coverage
 npm run build            # Build all packages
 ```
 
+## Credits
+
+Stroke data by [KanjiVG](http://kanjivg.tagaini.net/) (CC BY-SA 3.0) and [AnimCJK](https://github.com/parsimonhi/animCJK) (Arphic PL / LGPL).
+
 ## License
 
 MIT
