@@ -1,8 +1,19 @@
 import * as THREE from 'three';
 
+export interface Obstacle {
+  /** Center position on XZ plane */
+  position: THREE.Vector2;
+  /** Collision radius */
+  radius: number;
+}
+
 export interface FirstPersonControls {
   /** Call each frame with delta time in seconds */
   update(delta: number): void;
+  /** Set the list of obstacles for collision detection */
+  setObstacles(obstacles: Obstacle[]): void;
+  /** Set the boundary half-size (square area centered at origin) */
+  setBounds(halfSize: number): void;
   /** Clean up event listeners */
   dispose(): void;
 }
@@ -17,6 +28,7 @@ interface ControlKeys {
 /**
  * First-person controls: arrow keys to move/turn, mouse for looking.
  * Click the canvas to capture the pointer (pointer lock).
+ * Supports collision with obstacles and boundary clamping.
  */
 export function createFirstPersonControls(
   camera: THREE.PerspectiveCamera,
@@ -26,12 +38,18 @@ export function createFirstPersonControls(
     moveSpeed?: number;
     turnSpeed?: number;
     mouseSensitivity?: number;
+    /** Minimum distance to keep from obstacles */
+    collisionMargin?: number;
   } = {},
 ): FirstPersonControls {
   const eyeHeight = options.eyeHeight ?? 60;
   const moveSpeed = options.moveSpeed ?? 150;
   const turnSpeed = options.turnSpeed ?? 2;
   const mouseSensitivity = options.mouseSensitivity ?? 0.002;
+  const collisionMargin = options.collisionMargin ?? 30;
+
+  let obstacles: Obstacle[] = [];
+  let boundsHalfSize = Infinity;
 
   // Euler angles for camera rotation
   let yaw = 0;
@@ -150,13 +168,45 @@ export function createFirstPersonControls(
         direction.normalize();
         direction.applyQuaternion(camera.quaternion);
 
-        // Only move on XZ plane
-        camera.position.x += direction.x * moveSpeed * delta;
-        camera.position.z += direction.z * moveSpeed * delta;
+        // Compute new position on XZ plane
+        let newX = camera.position.x + direction.x * moveSpeed * delta;
+        let newZ = camera.position.z + direction.z * moveSpeed * delta;
+
+        // Clamp to boundary
+        const wallMargin = 10;
+        newX = Math.max(-boundsHalfSize + wallMargin, Math.min(boundsHalfSize - wallMargin, newX));
+        newZ = Math.max(-boundsHalfSize + wallMargin, Math.min(boundsHalfSize - wallMargin, newZ));
+
+        // Push away from obstacles
+        for (const obs of obstacles) {
+          const dx = newX - obs.position.x;
+          const dz = newZ - obs.position.y; // .y is Z in Vector2
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          const minDist = obs.radius + collisionMargin;
+
+          if (dist < minDist && dist > 0) {
+            // Push outward to minDist
+            const pushX = (dx / dist) * minDist;
+            const pushZ = (dz / dist) * minDist;
+            newX = obs.position.x + pushX;
+            newZ = obs.position.y + pushZ;
+          }
+        }
+
+        camera.position.x = newX;
+        camera.position.z = newZ;
       }
 
       // Lock Y to eye height
       camera.position.y = eyeHeight;
+    },
+
+    setObstacles(obs: Obstacle[]) {
+      obstacles = obs;
+    },
+
+    setBounds(halfSize: number) {
+      boundsHalfSize = halfSize;
     },
 
     dispose() {

@@ -1,6 +1,6 @@
 export type { ExtrudeOptions, SceneOptions } from './types.js';
 export type { Kaku3DScene } from './scene.js';
-export type { FirstPersonControls } from './controls.js';
+export type { FirstPersonControls, Obstacle } from './controls.js';
 
 export { extrudeCharacter } from './extrude-model.js';
 export { loadFont, glyphToShapes } from './font-shapes.js';

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { SceneOptions } from './types.js';
-import { createFirstPersonControls, type FirstPersonControls } from './controls.js';
+import { createFirstPersonControls, type FirstPersonControls, type Obstacle } from './controls.js';
 
 export interface Kaku3DScene {
   /** The Three.js scene */
@@ -24,7 +24,74 @@ export interface Kaku3DScene {
 }
 
 /**
- * Create a 3D scene with ground, grid, lighting, and first-person controls.
+ * Create a brick wall segment as a textured box.
+ */
+function createWall(
+  width: number,
+  height: number,
+  depth: number,
+  position: THREE.Vector3,
+  rotationY: number = 0,
+): THREE.Mesh {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+
+  // Create a simple brick pattern via canvas texture
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+
+  // Base brick color
+  ctx.fillStyle = '#8B4513';
+  ctx.fillRect(0, 0, 128, 128);
+
+  // Brick rows
+  const brickH = 16;
+  const brickW = 32;
+  ctx.strokeStyle = '#6B3410';
+  ctx.lineWidth = 2;
+
+  for (let row = 0; row < 128 / brickH; row++) {
+    const y = row * brickH;
+    const offset = (row % 2) * (brickW / 2);
+    // Horizontal mortar line
+    ctx.fillStyle = '#A0A0A0';
+    ctx.fillRect(0, y, 128, 2);
+    // Vertical mortar lines
+    for (let x = offset; x < 128; x += brickW) {
+      ctx.fillRect(x, y, 2, brickH);
+    }
+    // Slight color variation per brick
+    for (let x = offset; x < 128; x += brickW) {
+      const shade = 0.85 + Math.random() * 0.3;
+      ctx.fillStyle = `rgba(139, 69, 19, ${1 - shade + 0.7})`;
+      ctx.fillRect(x + 2, y + 2, brickW - 4, brickH - 4);
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(width / 100, height / 100);
+
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    roughness: 0.9,
+    metalness: 0.0,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(position);
+  mesh.rotation.y = rotationY;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  return mesh;
+}
+
+/**
+ * Create a 3D scene with ground, grid, lighting, boundary walls,
+ * and first-person controls with collision detection.
  */
 export function createScene(options: SceneOptions): Kaku3DScene {
   const {
@@ -39,6 +106,10 @@ export function createScene(options: SceneOptions): Kaku3DScene {
     turnSpeed,
     mouseSensitivity,
   } = options;
+
+  const halfGround = groundSize / 2;
+  const wallHeight = 120;
+  const wallThickness = 10;
 
   // Scene
   const scene = new THREE.Scene();
@@ -71,12 +142,36 @@ export function createScene(options: SceneOptions): Kaku3DScene {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Grid helper for movement reference
-  const grid = new THREE.GridHelper(groundSize, gridDivisions, 0x444444, 0x666666);
-  grid.position.y = 0.1; // Slightly above ground to avoid z-fighting
-  (grid.material as THREE.Material).opacity = 0.3;
-  (grid.material as THREE.Material).transparent = true;
+  // Grid — more visible with tighter spacing and higher contrast
+  const grid = new THREE.GridHelper(groundSize, gridDivisions, 0x3a5a2a, 0x4a6a3a);
+  grid.position.y = 0.2;
+  const gridMat = grid.material as THREE.Material;
+  gridMat.opacity = 0.6;
+  gridMat.transparent = true;
   scene.add(grid);
+
+  // Secondary fine grid for close-range movement feedback
+  const fineGrid = new THREE.GridHelper(groundSize, gridDivisions * 4, 0x4a6a3a, 0x4a6a3a);
+  fineGrid.position.y = 0.15;
+  const fineGridMat = fineGrid.material as THREE.Material;
+  fineGridMat.opacity = 0.25;
+  fineGridMat.transparent = true;
+  scene.add(fineGrid);
+
+  // Boundary walls
+  const wallY = wallHeight / 2;
+  // North wall (-Z)
+  scene.add(createWall(groundSize, wallHeight, wallThickness,
+    new THREE.Vector3(0, wallY, -halfGround)));
+  // South wall (+Z)
+  scene.add(createWall(groundSize, wallHeight, wallThickness,
+    new THREE.Vector3(0, wallY, halfGround)));
+  // West wall (-X)
+  scene.add(createWall(groundSize, wallHeight, wallThickness,
+    new THREE.Vector3(-halfGround, wallY, 0), Math.PI / 2));
+  // East wall (+X)
+  scene.add(createWall(groundSize, wallHeight, wallThickness,
+    new THREE.Vector3(halfGround, wallY, 0), Math.PI / 2));
 
   // Lighting
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
@@ -105,9 +200,26 @@ export function createScene(options: SceneOptions): Kaku3DScene {
     turnSpeed,
     mouseSensitivity,
   });
+  controls.setBounds(halfGround);
 
   // Model tracking
   const models: THREE.Group[] = [];
+
+  function updateObstacles() {
+    const obs: Obstacle[] = [];
+    for (const model of models) {
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      // Use the larger XZ dimension as collision radius
+      const radius = Math.max(size.x, size.z) / 2;
+      obs.push({
+        position: new THREE.Vector2(center.x, center.z),
+        radius,
+      });
+    }
+    controls.setObstacles(obs);
+  }
 
   // Render loop
   const clock = new THREE.Clock();
@@ -142,6 +254,7 @@ export function createScene(options: SceneOptions): Kaku3DScene {
       }
       scene.add(model);
       models.push(model);
+      updateObstacles();
     },
 
     clearModels() {
@@ -159,6 +272,7 @@ export function createScene(options: SceneOptions): Kaku3DScene {
         });
       }
       models.length = 0;
+      updateObstacles();
     },
 
     start() {
