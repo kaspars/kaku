@@ -176,6 +176,34 @@
       border-top: 1px solid #eee;
     }
 
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .toolbar-field {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      white-space: nowrap;
+    }
+
+    .toolbar label {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .toolbar select {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.9rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
     .setting-row {
       display: flex;
       align-items: center;
@@ -319,21 +347,36 @@
   <div class="container">
     <div class="tabs">
       <button class="tab-btn active" data-tab="animation">Animation</button>
+      <button class="tab-btn" data-tab="diagram">Diagram</button>
       <button class="tab-btn" data-tab="practice">Practice</button>
     </div>
 
     <!-- Animation Tab -->
     <div class="tab-panel active" id="tab-animation">
-      <div class="setting-row" style="margin-bottom: 1rem;">
-        <label for="providerSelect">Provider:</label>
-        <select id="providerSelect">
-          <option value="kanjivg">KanjiVG</option>
-          <option value="animcjk">AnimCJK</option>
-        </select>
-        <label for="charClassSelect">Characters:</label>
-        <select id="charClassSelect">
-          <option value="ja">Japanese</option>
-        </select>
+      <div class="toolbar">
+        <div class="toolbar-field">
+          <label for="providerSelect">Provider:</label>
+          <select id="providerSelect">
+            <option value="kanjivg">KanjiVG</option>
+            <option value="animcjk">AnimCJK</option>
+          </select>
+        </div>
+        <div class="toolbar-field">
+          <label for="charClassSelect">Characters:</label>
+          <select id="charClassSelect">
+            <option value="ja">Japanese</option>
+          </select>
+        </div>
+        <div class="toolbar-field">
+          <label for="animSizeSelect">Size:</label>
+          <select id="animSizeSelect">
+            <option value="150">150</option>
+            <option value="200">200</option>
+            <option value="300" selected>300</option>
+            <option value="400">400</option>
+            <option value="500">500</option>
+          </select>
+        </div>
       </div>
 
       <div class="presets" id="animPresets"></div>
@@ -390,22 +433,73 @@
         </div>
       </div>
 
-      <h2>Stroke Order Diagram</h2>
+    </div>
+
+    <!-- Diagram Tab -->
+    <div class="tab-panel" id="tab-diagram">
+      <div class="toolbar">
+        <div class="toolbar-field">
+          <label for="diagramProviderSelect">Provider:</label>
+          <select id="diagramProviderSelect">
+            <option value="kanjivg">KanjiVG</option>
+            <option value="animcjk">AnimCJK</option>
+          </select>
+        </div>
+        <div class="toolbar-field">
+          <label for="diagramCharClassSelect">Characters:</label>
+          <select id="diagramCharClassSelect">
+            <option value="ja">Japanese</option>
+          </select>
+        </div>
+        <div class="toolbar-field">
+          <label for="diagramSizeSelect">Size:</label>
+          <select id="diagramSizeSelect">
+            <option value="50">50</option>
+            <option value="80" selected>80</option>
+            <option value="120">120</option>
+            <option value="160">160</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="presets" id="diagramPresets"></div>
+
+      <div class="character-input">
+        <input type="text" id="diagramCharInput" maxlength="1" placeholder="Enter character" value="漢">
+        <button onclick="loadDiagramFromInput()">Load</button>
+      </div>
+
       <div class="diagram-container" id="diagram"></div>
+
+      <div class="error" id="diagramError"></div>
     </div>
 
     <!-- Practice Tab -->
     <div class="tab-panel" id="tab-practice">
-      <div class="setting-row" style="margin-bottom: 1rem;">
-        <label for="practiceProviderSelect">Provider:</label>
-        <select id="practiceProviderSelect">
-          <option value="kanjivg">KanjiVG</option>
-          <option value="animcjk">AnimCJK</option>
-        </select>
-        <label for="practiceCharClassSelect">Characters:</label>
-        <select id="practiceCharClassSelect">
-          <option value="ja">Japanese</option>
-        </select>
+      <div class="toolbar">
+        <div class="toolbar-field">
+          <label for="practiceProviderSelect">Provider:</label>
+          <select id="practiceProviderSelect">
+            <option value="kanjivg">KanjiVG</option>
+            <option value="animcjk">AnimCJK</option>
+          </select>
+        </div>
+        <div class="toolbar-field">
+          <label for="practiceCharClassSelect">Characters:</label>
+          <select id="practiceCharClassSelect">
+            <option value="ja">Japanese</option>
+          </select>
+        </div>
+        <div class="toolbar-field">
+          <label for="practiceSizeSelect">Size:</label>
+          <select id="practiceSizeSelect">
+            <option value="150">150</option>
+            <option value="200">200</option>
+            <option value="300" selected>300</option>
+            <option value="400">400</option>
+            <option value="500">500</option>
+          </select>
+        </div>
       </div>
 
       <div class="presets" id="practicePresets"></div>
@@ -452,6 +546,7 @@
     import { KakuRen } from './packages/kaku-ren/src/index.ts';
 
     // --- Tab switching ---
+    let diagramLoaded = false;
     let practiceLoaded = false;
 
     function switchTab(tabName) {
@@ -463,6 +558,12 @@
       btn.classList.add('active');
       document.getElementById('tab-' + tabName).classList.add('active');
       location.hash = tabName;
+
+      if (tabName === 'diagram' && !diagramLoaded) {
+        diagramLoaded = true;
+        const char = document.getElementById('diagramCharInput').value.trim();
+        if (char) loadDiagram(char);
+      }
 
       if (tabName === 'practice' && !practiceLoaded) {
         practiceLoaded = true;
@@ -507,19 +608,18 @@
       'zh-Hant': 'Traditional Chinese',
     };
 
-    // Compute canvas size to fit container, max 300px
-    function getCanvasSize() {
-      const container = document.querySelector('.container');
-      const style = getComputedStyle(container);
-      const available = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-      return Math.min(300, available);
+    function getAnimSize() {
+      return parseInt(document.getElementById('animSizeSelect').value);
+    }
+
+    function getPracticeSize() {
+      return parseInt(document.getElementById('practiceSizeSelect').value);
     }
 
     // ==============================
     // Animation Tab
     // ==============================
     window.kaku = null;
-    window.diagram = null;
     window.strokeDuration = 0.7;
     window.strokeEffect = 'draw';
     window.autoplay = true;
@@ -535,10 +635,11 @@
 
     function createRenderer() {
       if (window.currentProvider === 'animcjk') {
+        const size = getAnimSize();
         return new AnimCJKRenderer({
           container: document.getElementById('canvas'),
-          width: getCanvasSize(),
-          height: getCanvasSize(),
+          width: size,
+          height: size,
         });
       }
       return undefined; // Kaku uses SvgRenderer by default
@@ -565,8 +666,6 @@
       ).join('');
     }
 
-    window.diagram = null;
-
     function updateStatus() {
       document.getElementById('state').textContent = kaku?.state || 'idle';
       document.getElementById('strokeNum').textContent = kaku?.currentStroke || 0;
@@ -582,7 +681,7 @@
       }
 
       try {
-        const size = getCanvasSize();
+        const size = getAnimSize();
         const provider = getActiveProvider();
         const renderer = createRenderer();
 
@@ -619,20 +718,6 @@
 
         await kaku.load(char);
         updateStatus();
-
-        // Recreate diagram with current provider
-        if (window.diagram) window.diagram.dispose();
-        window.diagram = new KakuDiagram({
-          provider,
-          container: document.getElementById('diagram'),
-          width: 80,
-          height: 80,
-          strokeColor: '#333',
-          strokeWidth: window.currentProvider === 'kanjivg' ? 3 : undefined,
-          showGrid: true,
-          gridColor: '#e0e0e0',
-        });
-        await window.diagram.load(char);
 
       } catch (err) {
         document.getElementById('error').textContent = err.message;
@@ -695,10 +780,108 @@
       if (char) loadCharacter(char);
     });
 
+    document.getElementById('animSizeSelect').addEventListener('change', () => {
+      const char = document.getElementById('charInput').value.trim();
+      if (char) loadCharacter(char);
+    });
+
     // Initialize provider UI and load first character
     updateCharClassOptions();
     updatePresetButtons();
     loadCharacter('漢');
+
+    // ==============================
+    // Diagram Tab
+    // ==============================
+    window.diagram = null;
+    window.diagramProvider = 'kanjivg';
+    window.diagramCharClass = 'ja';
+
+    function getDiagramProvider() {
+      if (window.diagramProvider === 'kanjivg') return kanjivgProvider;
+      return animcjkProviders[window.diagramCharClass];
+    }
+
+    function updateDiagramCharClassOptions() {
+      const select = document.getElementById('diagramCharClassSelect');
+      const classes = Object.keys(presets[window.diagramProvider]);
+      select.innerHTML = classes.map(cls =>
+        `<option value="${cls}"${cls === window.diagramCharClass ? ' selected' : ''}>${charClassLabels[cls]}</option>`
+      ).join('');
+      if (!classes.includes(window.diagramCharClass)) {
+        window.diagramCharClass = classes[0];
+        select.value = window.diagramCharClass;
+      }
+    }
+
+    function updateDiagramPresetButtons() {
+      const container = document.getElementById('diagramPresets');
+      const chars = presets[window.diagramProvider][window.diagramCharClass] || [];
+      container.innerHTML = chars.map(ch =>
+        `<button onclick="loadDiagram('${ch}')">${ch}</button>`
+      ).join('');
+    }
+
+    window.loadDiagram = async function(char) {
+      document.getElementById('diagramError').textContent = '';
+      document.getElementById('diagramCharInput').value = char;
+
+      if (window.diagram) {
+        window.diagram.dispose();
+        window.diagram = null;
+      }
+
+      try {
+        const provider = getDiagramProvider();
+        const diagramSize = parseInt(document.getElementById('diagramSizeSelect').value);
+        window.diagram = new KakuDiagram({
+          provider,
+          container: document.getElementById('diagram'),
+          width: diagramSize,
+          height: diagramSize,
+          strokeColor: '#333',
+          strokeWidth: window.diagramProvider === 'kanjivg' ? 3 : undefined,
+          showGrid: true,
+          gridColor: '#e0e0e0',
+        });
+        await window.diagram.load(char);
+      } catch (err) {
+        document.getElementById('diagramError').textContent = err.message;
+        console.error(err);
+      }
+    };
+
+    window.loadDiagramFromInput = function() {
+      const char = document.getElementById('diagramCharInput').value.trim();
+      if (char) loadDiagram(char);
+    };
+
+    document.getElementById('diagramCharInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadDiagramFromInput();
+    });
+
+    document.getElementById('diagramProviderSelect').addEventListener('change', (e) => {
+      window.diagramProvider = e.target.value;
+      updateDiagramCharClassOptions();
+      updateDiagramPresetButtons();
+      const chars = presets[window.diagramProvider][window.diagramCharClass];
+      loadDiagram(chars[0]);
+    });
+
+    document.getElementById('diagramCharClassSelect').addEventListener('change', (e) => {
+      window.diagramCharClass = e.target.value;
+      updateDiagramPresetButtons();
+      const chars = presets[window.diagramProvider][window.diagramCharClass];
+      loadDiagram(chars[0]);
+    });
+
+    document.getElementById('diagramSizeSelect').addEventListener('change', () => {
+      const char = document.getElementById('diagramCharInput').value.trim();
+      if (char) loadDiagram(char);
+    });
+
+    updateDiagramCharClassOptions();
+    updateDiagramPresetButtons();
 
     // ==============================
     // Practice Tab
@@ -784,7 +967,7 @@
       }
 
       try {
-        const size = getCanvasSize();
+        const size = getPracticeSize();
         const isAnimCJK = window.practiceProvider === 'animcjk';
         const provider = getPracticeProvider();
         const renderer = createPracticeRenderer(size);
@@ -893,6 +1076,11 @@
 
     document.getElementById('practiceOutlineCheckbox').addEventListener('change', (e) => {
       // Reload to apply showOutline change
+      const char = document.getElementById('practiceCharInput').value.trim();
+      if (char) loadPractice(char);
+    });
+
+    document.getElementById('practiceSizeSelect').addEventListener('change', () => {
       const char = document.getElementById('practiceCharInput').value.trim();
       if (char) loadPractice(char);
     });
