@@ -28,6 +28,7 @@ See `docs/kanjivg.md` and `docs/animcjk.md` for detailed format documentation.
 
 ```
 ├── package.json            # Workspace root
+├── CHANGELOG.md            # Release history
 ├── vite.config.ts          # Dev server for demo
 ├── index.html              # Unified demo page (tabs for animation + practice)
 ├── docs/                   # Data source documentation
@@ -59,4 +60,7 @@ npm run build            # Build all packages
 - Root vite.config.ts is only for the demo server
 - Single demo page with tabs for both packages
 - Data is fetched remotely (raw.githubusercontent.com) — no bundled SVGs
+- Both providers cache `CharacterData` in memory after the first fetch
 - AnimCJK uses a dedicated renderer (`AnimCJKRenderer`) that embeds native SVG with clip-path animation; KanjiVG uses the default `SvgRenderer`
+- KakuRen construction order is flexible (before or after `kaku.load()`); `refresh()` must be called after every `load()`
+- Both packages are versioned and released together

@@ -34,13 +34,17 @@ const provider = new KanjiVGProvider({
 
 const container = document.getElementById('canvas');
 
+// Pass strokeEffect: 'none' so Kaku doesn't re-animate strokes that
+// KakuRen has already morphed into place.
 const kaku = new Kaku({
   provider,
   container,
   size: 200,
-  showOutline: true,  // Show faint character outline
+  showOutline: true,
+  animation: { autoplay: false, strokeEffect: 'none', strokeDuration: 0 },
 });
 
+// KakuRen can be constructed before or after kaku.load() — either order works.
 const ren = new KakuRen({
   kaku,
   container,
@@ -59,6 +63,7 @@ const ren = new KakuRen({
 });
 
 await kaku.load('漢');
+ren.refresh(); // must be called after every kaku.load()
 ```
 
 Works with both KanjiVG and AnimCJK providers — pass the appropriate Kaku instance.
@@ -84,6 +89,8 @@ interface KakuRenOptions {
 }
 ```
 
+> **Important:** The `size` passed to `KakuRen` must match the `size` passed to `Kaku`. `refresh()` validates this and throws a descriptive error if they differ.
+
 ### Properties
 
 | Property | Type | Description |
@@ -93,13 +100,15 @@ interface KakuRenOptions {
 | `averageScore` | `number` | Average score across all strokes |
 | `allScores` | `readonly number[]` | All scores so far |
 | `enabled` | `boolean` | Enable/disable drawing input |
+| `guide` | `boolean` | Show/hide the deprecated guide overlay |
 
 ### Methods
 
 | Method | Description |
 |--------|-------------|
-| `reset(): void` | Reset practice state (scores and strokes) |
-| `refresh(): void` | Refresh overlay after loading a new character |
+| `refresh(): void` | Sync overlay after `kaku.load()` — call this every time a new character is loaded |
+| `reset(): void` | Reset practice state (scores and stroke position) without reloading |
+| `playHints(): Promise<void>` | Play all stroke hints in sequence (debug/demo utility) |
 | `dispose(): void` | Clean up resources |
 
 ### EvaluationResult

@@ -112,6 +112,7 @@ interface AnimatorOptions {
 | `reset(): void` | Reset animation to beginning |
 | `nextStroke(): Promise<void>` | Animate next stroke (manual mode) |
 | `previousStroke(): void` | Go back one stroke (manual mode) |
+| `setShowOutline(value: boolean): void` | Toggle the outline overlay on the current character without a full reload. Resets animation state; call `kakuRen.refresh()` afterwards if using KakuRen. |
 | `on(event, handler): () => void` | Subscribe to events, returns unsubscribe function |
 | `getSvg(): SVGSVGElement` | Get the SVG element |
 | `getCharacterData(): CharacterData \| null` | Get loaded character data |
@@ -197,7 +198,7 @@ const provider = new KanjiVGProvider({
 });
 ```
 
-Uses the default `SvgRenderer`. Files are named by hex codepoint (`05b57.svg`) with a 109x109 viewBox.
+Uses the default `SvgRenderer`. Files are named by hex codepoint (`05b57.svg`) with a 109x109 viewBox. Character data is cached in memory — repeated `load()` calls for the same character return instantly without a network request.
 
 #### AnimCJKProvider
 
@@ -211,7 +212,7 @@ const provider = new AnimCJKProvider({
 });
 ```
 
-Requires `AnimCJKRenderer` to display calligraphic stroke shapes. Files are named by decimal codepoint (`23383.svg`) with a 1024x1024 viewBox. Japanese falls back from `svgsJa/` to `svgsJaKana/` for kana characters.
+Requires `AnimCJKRenderer` to display calligraphic stroke shapes. Files are named by decimal codepoint (`23383.svg`) with a 1024x1024 viewBox. Japanese falls back from `svgsJa/` to `svgsJaKana/` for kana characters. Character data is cached in memory after the first fetch.
 
 ### CharacterData
 

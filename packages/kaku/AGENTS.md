@@ -103,6 +103,8 @@ Strokes appear instantly with no animation, but still respect `strokeDuration` a
 
 Two providers are available. See `docs/kanjivg.md` and `docs/animcjk.md` for detailed format docs.
 
+Both providers cache `CharacterData` in a `Map<string, CharacterData>` after the first successful fetch. Repeat `load()` calls for the same character skip the network entirely.
+
 ### KanjiVG
 
 - 109x109 viewBox, hex codepoint filenames (`05b57.svg`)
@@ -183,7 +185,8 @@ npm run test:coverage # Coverage report
 1. Add option to `RenderOptions` in `src/types/renderer.ts`
 2. Handle in `SvgRenderer.render()`
 3. Pass through from `KakuOptions` in `src/core/kaku.ts`
-4. If applicable to diagrams, also update `KakuDiagram`
+4. If the option needs to be changeable at runtime (like `showOutline`), add a dedicated setter on `Kaku` that updates `renderOptions` and calls `renderer.render()` + `animator.setStrokes()` — see `setShowOutline()` as the reference pattern
+5. If applicable to diagrams, also update `KakuDiagram`
 
 ### Adding Stroke Effects
 

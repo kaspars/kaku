@@ -35,6 +35,37 @@ Stroke practice library that adds interactive drawing input and evaluation on to
 | `src/stroke-evaluator.ts` | Pure function: resampling, distance scoring, direction check |
 | `src/types.ts` | TypeScript interfaces (Point, EvaluationResult, etc.) |
 
+## Initialization Order
+
+`KakuRen` can be constructed before or after `kaku.load()` — either order is safe. `setupLayering()` (which sets z-index on the Kaku SVG element) is deferred to `refresh()` rather than running in the constructor. The required call sequence is:
+
+```
+new Kaku(...)       ┐
+new KakuRen(...)    ├─ any order
+await kaku.load()   ┘
+kakuRen.refresh()   ← must follow every kaku.load()
+```
+
+## Required Kaku Configuration
+
+When using KakuRen, the Kaku instance must be created with:
+
+```typescript
+animation: { autoplay: false, strokeEffect: 'none', strokeDuration: 0 }
+```
+
+Without `strokeEffect: 'none'`, Kaku re-animates each accepted stroke after KakuRen's morph completes, causing a visible double-draw.
+
+## refresh()
+
+`refresh()` must be called after every `kaku.load()`. It:
+
+1. Calls `setupLayering()` — sets `position: relative; z-index: 2` on the Kaku SVG
+2. Validates that the KakuRen `size` matches the Kaku SVG dimensions — throws a descriptive error if they differ
+3. Removes and re-creates the guide overlay (if `showGuide: true`)
+4. Clears scores, cached sampled points, and re-enables input
+5. Recomputes canvas stroke width to match the new SVG (unless `strokeWidth` was explicit)
+
 ## Evaluation Algorithm
 
 1. Resample both expected and user strokes to N equidistant points (N=50)
@@ -44,6 +75,8 @@ Stroke practice library that adds interactive drawing input and evaluation on to
 5. Reject if user stroke length < 2/3 of expected
 6. Apply length-based boost for short strokes (< 20 units)
 7. Score = 1 - normalizedDistance / (threshold * boost), clamped to [0, 1]
+
+Sampled points for each path are cached in `sampledPointsCache` and cleared on `refresh()`.
 
 ### Direction checking
 
@@ -66,15 +99,20 @@ On rejection, the rendered stroke is animated with the draw effect to show the c
 - Brief hold (300ms) then stroke is hidden and color restored
 - Uses Kaku's `getRenderedStrokes()` for calligraphic shapes (not canvas polylines)
 
+## showGuide (deprecated)
+
+`showGuide` defaults to `false` as of 1.3.0 (was `true` in earlier versions). The option is deprecated — use Kaku's `showOutline` instead. `showGuide: true` renders a secondary faint SVG guide below the Kaku SVG; `showOutline` renders the outline directly inside the Kaku SVG.
+
 ## Testing
 
 Vitest + jsdom. Key considerations:
 - Canvas 2D context is mocked in jsdom (getContext returns a basic mock)
 - StrokeEvaluator is pure math — easy to unit test with synthetic points
 - StrokeInput needs pointer event simulation (pointerdown/pointermove/pointerup)
-- Mock Kaku object in tests must include `getRenderedStrokes()` returning mock RenderedStroke objects
+- Mock Kaku object in tests must include `getRenderedStrokes()` returning mock RenderedStroke objects with `width="200" height="200"` on the SVG returned by `getSvg()` (needed for refresh() size validation)
 - Use `vi.useFakeTimers()` + `vi.advanceTimersByTimeAsync()` for hint/morph timing
-- `requestAnimationFrame` callbacks need manual flushing
+- `requestAnimationFrame` callbacks need manual flushing via `flushRaf()` (completes in one shot) or `flushRafOneShot(time)` (fires exactly one batch, use two calls with different times to cover intermediate animation frames)
+- Coverage: 100% statements/branches/functions/lines on `kaku-ren.ts`
 
 ## Dependencies
 
