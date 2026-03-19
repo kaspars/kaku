@@ -45,6 +45,7 @@ export class AnimCJKProvider implements DataProvider {
   private readonly language: AnimCJKLanguage;
   private readonly dirs: string[];
   private readonly fetchFn: typeof globalThis.fetch;
+  private readonly cache = new Map<string, CharacterData>();
 
   constructor(options: AnimCJKProviderOptions) {
     this.basePath = options.basePath.replace(/\/$/, '');
@@ -78,9 +79,14 @@ export class AnimCJKProvider implements DataProvider {
   }
 
   /**
-   * Fetch character data from AnimCJK
+   * Fetch character data from AnimCJK.
+   * Results are cached in memory; repeated calls for the same character
+   * return immediately without a network request.
    */
   async getCharacter(char: string): Promise<ProviderResult<CharacterData>> {
+    const cached = this.cache.get(char);
+    if (cached) return { success: true, data: cached };
+
     const cp = char.codePointAt(0);
     if (cp === undefined) {
       return { success: false, error: new Error('Invalid character') };
@@ -97,6 +103,7 @@ export class AnimCJKProvider implements DataProvider {
         if (response.ok) {
           const svgText = await response.text();
           const data = this.parseSvg(char, svgText);
+          this.cache.set(char, data);
           return { success: true, data };
         }
       } catch {

@@ -24,6 +24,7 @@ export class KanjiVGProvider implements DataProvider {
 
   private readonly basePath: string;
   private readonly fetchFn: typeof globalThis.fetch;
+  private readonly cache = new Map<string, CharacterData>();
 
   constructor(options: KanjiVGProviderOptions) {
     this.basePath = options.basePath.replace(/\/$/, ''); // Remove trailing slash
@@ -54,9 +55,14 @@ export class KanjiVGProvider implements DataProvider {
   }
 
   /**
-   * Fetch character data from KanjiVG
+   * Fetch character data from KanjiVG.
+   * Results are cached in memory; repeated calls for the same character
+   * return immediately without a network request.
    */
   async getCharacter(char: string): Promise<ProviderResult<CharacterData>> {
+    const cached = this.cache.get(char);
+    if (cached) return { success: true, data: cached };
+
     try {
       const url = this.buildUrl(char);
       const response = await this.fetchFn(url);
@@ -72,6 +78,7 @@ export class KanjiVGProvider implements DataProvider {
 
       const svgText = await response.text();
       const data = this.parseSvg(char, svgText);
+      this.cache.set(char, data);
 
       return { success: true, data };
     } catch (error) {

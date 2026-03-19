@@ -220,6 +220,21 @@ export class Kaku {
   }
 
   /**
+   * Change the outline overlay on the currently loaded character without
+   * a full dispose + recreate cycle.
+   *
+   * Re-renders the character and resets animation state (back to stroke 0).
+   * If you are using KakuRen, call `kakuRen.refresh()` immediately after.
+   * Has no effect if no character is loaded yet.
+   */
+  setShowOutline(value: boolean): void {
+    this.renderOptions = { ...this.renderOptions, showOutline: value };
+    if (!this.characterData) return;
+    const renderedStrokes = this.renderer.render(this.characterData, this.renderOptions);
+    this.animator.setStrokes(renderedStrokes);
+  }
+
+  /**
    * Dispose instance and clean up
    */
   dispose(): void {

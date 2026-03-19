@@ -84,6 +84,16 @@ function samplePathDataDOM(d: string, N: number): { points: Point[]; length: num
 /**
  * KakuRen — stroke practice orchestrator.
  * Overlays a drawing canvas on a Kaku instance and evaluates user input.
+ *
+ * **Required Kaku configuration for practice mode:**
+ * Pass `animation: { autoplay: false, strokeEffect: 'none', strokeDuration: 0 }`
+ * to your Kaku instance. Without `strokeEffect: 'none'`, Kaku will re-animate
+ * each accepted stroke after KakuRen's morph completes, causing a visible
+ * double-draw.
+ *
+ * **Initialization order:**
+ * Construct KakuRen before or after `kaku.load()` — either order is fine.
+ * Call `kakuRen.refresh()` after every `kaku.load()` to sync the overlay.
  */
 export class KakuRen {
   private kaku: Kaku;
@@ -124,11 +134,8 @@ export class KakuRen {
     // Auto-compute stroke width to match SVG if not explicitly provided
     const strokeWidth = options.strokeWidth ?? this.computeStrokeWidth();
 
-    // Set up z-index layering on the Kaku SVG
-    this.setupLayering();
-
-    // Create guide overlay if requested (default: true)
-    if (options.showGuide !== false) {
+    // Create guide overlay if explicitly requested (deprecated; default: false)
+    if (options.showGuide === true) {
       this.createGuide();
     }
 
@@ -192,10 +199,26 @@ export class KakuRen {
   }
 
   /**
-   * Refresh the practice overlay (e.g. after loading a new character in Kaku).
-   * Re-creates the guide and clears scores.
+   * Refresh the practice overlay after `kaku.load()`.
+   * Must be called every time a new character is loaded.
+   * Re-applies SVG layering, re-creates the guide, and clears scores.
    */
   refresh(): void {
+    // Apply z-index layering to the (possibly new) Kaku SVG
+    this.setupLayering();
+
+    // Validate that KakuRen size matches the Kaku SVG size
+    const svg = this.kaku.getSvg();
+    const svgWidth = parseFloat(svg.getAttribute('width') ?? '');
+    const svgHeight = parseFloat(svg.getAttribute('height') ?? '');
+    if (!isNaN(svgWidth) && !isNaN(svgHeight) &&
+        (svgWidth !== this.width || svgHeight !== this.height)) {
+      throw new Error(
+        `KakuRen size (${this.width}×${this.height}) does not match Kaku SVG size ` +
+        `(${svgWidth}×${svgHeight}). Pass the same \`size\` to both Kaku and KakuRen.`,
+      );
+    }
+
     if (this.guideSvg) {
       this.guideSvg.remove();
       this.guideSvg = null;
@@ -205,7 +228,7 @@ export class KakuRen {
     this.input.clear();
     this.input.enabled = true;
 
-    if (this.options.showGuide !== false) {
+    if (this.options.showGuide === true) {
       this.createGuide();
     }
 

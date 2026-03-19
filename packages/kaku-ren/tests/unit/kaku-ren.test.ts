@@ -24,6 +24,13 @@ function flushRaf(time = 99999): void {
   }
 }
 
+/** Flush exactly one batch of RAF callbacks at the given time (no loop). */
+function flushRafOneShot(time: number): void {
+  const cbs = rafCallbacks.slice();
+  rafCallbacks = [];
+  for (const cb of cbs) cb(time);
+}
+
 // Mock performance.now to return a large value so morph/hint animations complete instantly
 vi.spyOn(performance, 'now').mockReturnValue(0);
 
@@ -63,6 +70,8 @@ function makeMockKaku(strokeCount = 3) {
     reset: vi.fn(() => { currentStroke = 0; }),
     getSvg: vi.fn(() => {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '200');
+      svg.setAttribute('height', '200');
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('stroke-width', '3');
       svg.appendChild(path);
@@ -171,6 +180,14 @@ describe('KakuRen', () => {
       expect(ren.allScores).toEqual([]);
 
       ren.dispose();
+    });
+
+    it('defaults to 200×200 when no size option is provided', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container });
+
+      // Should construct successfully with 200px defaults
+      expect(ren.totalStrokes).toBe(3);
     });
 
     it('can be enabled and disabled', () => {
@@ -401,6 +418,250 @@ describe('KakuRen', () => {
       await vi.advanceTimersByTimeAsync(500);
 
       expect(ren.allScores.length).toBe(0);
+    });
+  });
+
+  describe('refresh()', () => {
+    it('applies SVG layering and clears state', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      ren.refresh();
+
+      // getSvg called at least once (setupLayering + size validation)
+      expect(kaku.getSvg).toHaveBeenCalled();
+      expect(ren.allScores).toEqual([]);
+      expect(ren.enabled).toBe(true);
+    });
+
+    it('throws a descriptive error when sizes differ', () => {
+      const kaku = makeMockKaku();
+      kaku.getSvg = vi.fn(() => {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '300');
+        svg.setAttribute('height', '300');
+        return svg;
+      });
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      expect(() => ren.refresh()).toThrow('200×200');
+      expect(() => ren.refresh()).toThrow('300×300');
+      expect(() => ren.refresh()).toThrow('size');
+    });
+
+    it('removes and re-creates the guide on re-call', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, showGuide: true });
+
+      // Count guide SVGs before
+      const before = container.querySelectorAll('svg').length;
+      ren.refresh();
+      // Guide re-created — count stays the same
+      expect(container.querySelectorAll('svg').length).toBe(before);
+    });
+
+    it('updates stroke width on refresh when not explicitly set', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      // Should not throw; exercises the strokeWidth update code path
+      ren.refresh();
+    });
+
+    it('does not update stroke width when explicitly set', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, strokeWidth: 5 });
+
+      ren.refresh(); // strokeWidth branch skipped
+      expect(ren.enabled).toBe(true);
+    });
+
+    it('skips size validation when SVG has no width/height attributes', () => {
+      const kaku = makeMockKaku();
+      // SVG with no width/height → getAttribute returns null → ?? '' fallback → NaN → skip
+      kaku.getSvg = vi.fn(() =>
+        document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+      );
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      expect(() => ren.refresh()).not.toThrow();
+    });
+  });
+
+  describe('guide setter and getter', () => {
+    it('getter returns false when no guide exists', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      expect(ren.guide).toBe(false);
+    });
+
+    it('getter returns true when guide is visible', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, showGuide: true });
+
+      expect(ren.guide).toBe(true);
+    });
+
+    it('setter hides and shows guide', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, showGuide: true });
+
+      ren.guide = false;
+      expect(ren.guide).toBe(false);
+
+      ren.guide = true;
+      expect(ren.guide).toBe(true);
+    });
+
+    it('setter is a no-op when no guide exists', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      // Should not throw
+      ren.guide = false;
+      expect(ren.guide).toBe(false);
+    });
+  });
+
+  describe('showGuide option', () => {
+    it('creates a guide SVG in the constructor when showGuide is true', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, showGuide: true });
+
+      expect(ren.guide).toBe(true);
+      // A guide SVG (z-index 1) should be present in the container
+      const svgs = Array.from(container.querySelectorAll('svg'));
+      expect(svgs.some(s => s.style.zIndex === '1')).toBe(true);
+    });
+
+    it('skips guide creation when no character data', () => {
+      const kaku = makeMockKaku();
+      kaku.getCharacterData = vi.fn(() => null);
+      // showGuide: true but no charData → createGuide() returns early
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, showGuide: true });
+
+      expect(ren.guide).toBe(false);
+    });
+
+    it('falls back to stroke-width "3" when guide SVG has no path', () => {
+      const kaku = makeMockKaku();
+      // Return SVG with no child path — exercises the `: '3'` fallback in createGuide
+      kaku.getSvg = vi.fn(() =>
+        document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+      );
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, showGuide: true });
+
+      expect(ren.guide).toBe(true);
+    });
+
+    it('dispose removes guideSvg from DOM', () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, showGuide: true });
+
+      const svgsBefore = Array.from(container.querySelectorAll('svg'));
+      expect(svgsBefore.some(s => s.style.zIndex === '1')).toBe(true);
+
+      ren.dispose();
+
+      const svgsAfter = Array.from(container.querySelectorAll('svg'));
+      expect(svgsAfter.every(s => s.style.zIndex !== '1')).toBe(true);
+    });
+  });
+
+  describe('playHints()', () => {
+    it('does nothing when no character data', async () => {
+      const kaku = makeMockKaku();
+      kaku.getCharacterData = vi.fn(() => null);
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      await ren.playHints(); // Should not throw
+      expect(ren.enabled).toBe(true);
+    });
+
+    it('plays a hint for each stroke then re-enables input', async () => {
+      const kaku = makeMockKaku(1); // 1 stroke
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      const p = ren.playHints();
+      // Advance past hintDuration (600ms) + hold (300ms) + inter-stroke pause (200ms)
+      await vi.advanceTimersByTimeAsync(1500);
+      await p;
+
+      expect(ren.enabled).toBe(true);
+      const rendered = kaku.getRenderedStrokes()[0];
+      expect(rendered.setProgress).toHaveBeenCalledWith(0);
+      expect(rendered.setProgress).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('computeStrokeWidth fallback', () => {
+    it('uses default width of 3 when SVG has no path element', () => {
+      const kaku = makeMockKaku();
+      // Return SVG with no child path so svgPath is null → fallback `: 3` branch
+      kaku.getSvg = vi.fn(() =>
+        document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+      );
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      // Instance created successfully with fallback stroke width
+      expect(ren.totalStrokes).toBe(3);
+    });
+  });
+
+  describe('sampledPoints cache', () => {
+    it('returns cached points on second stroke evaluation of same path', async () => {
+      const kaku = makeMockKaku(1);
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      const canvas = getCanvas(container);
+
+      // First draw: populates cache, gets rejected (bad stroke)
+      drawStroke(canvas, badStroke());
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Second draw on same stroke (same pathData): hits the cache
+      drawStroke(canvas, badStroke());
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Two rejections, both evaluated — cache hit on second
+      expect(ren.allScores.length).toBe(2);
+    });
+  });
+
+  describe('showHint edge cases', () => {
+    it('does nothing when rendered stroke is missing at index', async () => {
+      const kaku = makeMockKaku(3);
+      // Return fewer rendered strokes than actual strokes
+      kaku.getRenderedStrokes = vi.fn(() => []);
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200 });
+
+      const canvas = getCanvas(container);
+      // Bad stroke triggers showHint(0) but renderedStrokes[0] is undefined → early return
+      drawStroke(canvas, badStroke());
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(ren.enabled).toBe(true);
+    });
+  });
+
+  describe('morph animation', () => {
+    it('schedules intermediate RAF frames when morph is not yet complete', async () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, morphDuration: 80 });
+
+      const canvas = getCanvas(container);
+      drawStroke(canvas, goodStroke(20));
+
+      // First RAF at t = 40/80 = 0.5 → t < 1, schedules another frame (line 450)
+      flushRafOneShot(40);
+      // Second RAF at t >> 1 → resolves
+      flushRafOneShot(99999);
+
+      await vi.advanceTimersByTimeAsync(500);
     });
   });
 });
