@@ -176,6 +176,20 @@ export class AnimCJKRenderer implements Renderer {
       p.style.opacity = '1';
     }
 
+    // See stroke-path.ts: the dashoffset and opacity channels share a single
+    // `style.transition` declaration and must be composed rather than each
+    // setter overwriting the property.
+    let dashTransition: string | null = null;
+    let opacityTransition: string | null = null;
+
+    const applyTransitions = (): void => {
+      const active = [dashTransition, opacityTransition].filter(Boolean);
+      const value = active.length > 0 ? active.join(', ') : 'none';
+      for (const p of pathElements) {
+        p.style.transition = value;
+      }
+    };
+
     return {
       element,
       length: pathLength,
@@ -190,15 +204,13 @@ export class AnimCJKRenderer implements Renderer {
       },
 
       setTransition(duration: number, easing = 'ease') {
-        for (const p of pathElements) {
-          p.style.transition = `stroke-dashoffset ${duration}s ${easing}`;
-        }
+        dashTransition = `stroke-dashoffset ${duration}s ${easing}`;
+        applyTransitions();
       },
 
       clearTransition() {
-        for (const p of pathElements) {
-          p.style.transition = 'none';
-        }
+        dashTransition = null;
+        applyTransitions();
       },
 
       setOpacity(opacity: number) {
@@ -209,15 +221,13 @@ export class AnimCJKRenderer implements Renderer {
       },
 
       setOpacityTransition(duration: number, easing = 'ease') {
-        for (const p of pathElements) {
-          p.style.transition = `opacity ${duration}s ${easing}`;
-        }
+        opacityTransition = `opacity ${duration}s ${easing}`;
+        applyTransitions();
       },
 
       clearOpacityTransition() {
-        for (const p of pathElements) {
-          p.style.transition = 'none';
-        }
+        opacityTransition = null;
+        applyTransitions();
       },
     };
   }

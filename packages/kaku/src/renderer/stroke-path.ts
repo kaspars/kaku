@@ -78,6 +78,19 @@ export function createStrokePath(
   element.style.strokeDashoffset = String(length);
   element.style.opacity = '1';
 
+  // `style.transition` is a single declaration, so the dashoffset and opacity
+  // channels have to be tracked separately and composed on every change.
+  // Writing the property directly from each setter would make them clobber
+  // one another: setting an opacity transition would drop the dashoffset one,
+  // and clearing either would wipe both.
+  let dashTransition: string | null = null;
+  let opacityTransition: string | null = null;
+
+  const applyTransitions = (): void => {
+    const active = [dashTransition, opacityTransition].filter(Boolean);
+    element.style.transition = active.length > 0 ? active.join(', ') : 'none';
+  };
+
   return {
     element,
     length,
@@ -90,11 +103,13 @@ export function createStrokePath(
     },
 
     setTransition(duration: number, easing = 'ease') {
-      element.style.transition = `stroke-dashoffset ${duration}s ${easing}`;
+      dashTransition = `stroke-dashoffset ${duration}s ${easing}`;
+      applyTransitions();
     },
 
     clearTransition() {
-      element.style.transition = 'none';
+      dashTransition = null;
+      applyTransitions();
     },
 
     setOpacity(opacity: number) {
@@ -103,11 +118,13 @@ export function createStrokePath(
     },
 
     setOpacityTransition(duration: number, easing = 'ease') {
-      element.style.transition = `opacity ${duration}s ${easing}`;
+      opacityTransition = `opacity ${duration}s ${easing}`;
+      applyTransitions();
     },
 
     clearOpacityTransition() {
-      element.style.transition = 'none';
+      opacityTransition = null;
+      applyTransitions();
     },
   };
 }

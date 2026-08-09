@@ -190,6 +190,69 @@ describe('createStrokePath', () => {
     });
   });
 
+  describe('independent transition channels', () => {
+    it('should run dashoffset and opacity transitions together', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setTransition(0.5, 'ease');
+      rendered.setOpacityTransition(1, 'linear');
+
+      // Both channels live in one `style.transition` declaration, so they have
+      // to compose rather than overwrite.
+      expect(rendered.element.style.transition).toBe(
+        'stroke-dashoffset 0.5s ease, opacity 1s linear'
+      );
+    });
+
+    it('should compose regardless of the order the channels are set', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setOpacityTransition(1, 'linear');
+      rendered.setTransition(0.5, 'ease');
+
+      expect(rendered.element.style.transition).toBe(
+        'stroke-dashoffset 0.5s ease, opacity 1s linear'
+      );
+    });
+
+    it('should keep the opacity transition when clearing the dashoffset one', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setTransition(0.5);
+      rendered.setOpacityTransition(1, 'linear');
+
+      rendered.clearTransition();
+
+      expect(rendered.element.style.transition).toBe('opacity 1s linear');
+    });
+
+    it('should keep the dashoffset transition when clearing the opacity one', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setTransition(0.5, 'ease');
+      rendered.setOpacityTransition(1);
+
+      rendered.clearOpacityTransition();
+
+      expect(rendered.element.style.transition).toBe('stroke-dashoffset 0.5s ease');
+    });
+
+    it('should fall back to none once both channels are cleared', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setTransition(0.5);
+      rendered.setOpacityTransition(1);
+
+      rendered.clearTransition();
+      rendered.clearOpacityTransition();
+
+      expect(rendered.element.style.transition).toBe('none');
+    });
+
+    it('should replace rather than accumulate when a channel is set twice', () => {
+      const rendered = createStrokePath(mockStroke);
+      rendered.setTransition(0.5, 'ease');
+      rendered.setTransition(2, 'linear');
+
+      expect(rendered.element.style.transition).toBe('stroke-dashoffset 2s linear');
+    });
+  });
+
   describe('path length estimation fallback', () => {
     it('should use default length for path with single point', () => {
       const singlePointStroke: Stroke = {

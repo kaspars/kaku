@@ -251,6 +251,46 @@ describe('AnimCJKRenderer', () => {
       strokes[0].clearOpacityTransition();
       expect(strokes[0].element.style.transition).toBe('none');
     });
+
+    it('should compose the dashoffset and opacity transitions', () => {
+      const data = makeCharacterData(kanjiSvg);
+      const strokes = renderer.render(data);
+
+      strokes[0].setTransition(0.5, 'ease');
+      strokes[0].setOpacityTransition(1, 'linear');
+
+      expect(strokes[0].element.style.transition).toBe(
+        'stroke-dashoffset 0.5s ease, opacity 1s linear'
+      );
+    });
+
+    it('should clear one transition channel without dropping the other', () => {
+      const data = makeCharacterData(kanjiSvg);
+      const strokes = renderer.render(data);
+
+      strokes[0].setTransition(0.5, 'ease');
+      strokes[0].setOpacityTransition(1, 'linear');
+      strokes[0].clearTransition();
+
+      expect(strokes[0].element.style.transition).toBe('opacity 1s linear');
+    });
+
+    it('should apply composed transitions to every part of a multi-part stroke', () => {
+      const data = makeCharacterData(kanaSvg);
+      const strokes = renderer.render(data);
+      const multiPart = strokes[2]; // stroke 3 of あ is split into two parts
+
+      multiPart.setTransition(0.5, 'ease');
+      multiPart.setOpacityTransition(1, 'linear');
+
+      const svg = renderer.getSvg();
+      const strokePaths = Array.from(svg.querySelectorAll('path[clip-path]'));
+      for (const part of [strokePaths[2], strokePaths[3]] as SVGPathElement[]) {
+        expect(part.style.transition).toBe(
+          'stroke-dashoffset 0.5s ease, opacity 1s linear'
+        );
+      }
+    });
   });
 
   describe('clear', () => {
