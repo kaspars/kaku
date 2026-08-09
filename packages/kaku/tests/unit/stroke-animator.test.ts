@@ -726,6 +726,144 @@ describe('StrokeAnimator', () => {
     });
   });
 
+  describe('manual stepping with fade effect', () => {
+    let fadeAnimator: StrokeAnimator;
+
+    beforeEach(() => {
+      fadeAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        strokeEffect: 'fade',
+      });
+      fadeAnimator.setStrokes(strokes);
+      // setStrokes primes every stroke (setProgress(1) + setOpacity(0)); clear
+      // so the assertions below only see the stepping behaviour.
+      vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+      fadeAnimator.dispose();
+    });
+
+    it('nextStroke should complete an in-flight stroke via opacity', async () => {
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(250); // mid-fade
+      vi.clearAllMocks();
+
+      fadeAnimator.nextStroke();
+
+      expect(strokes[0].setOpacity).toHaveBeenCalledWith(1);
+    });
+
+    it('nextStroke should re-arm the opacity transition after the instant show', async () => {
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      fadeAnimator.nextStroke();
+
+      // Transition must be cleared before the jump and restored after, or the
+      // "instant" completion animates instead of snapping.
+      const cleared = vi.mocked(strokes[0].clearOpacityTransition).mock
+        .invocationCallOrder[0];
+      const set = vi.mocked(strokes[0].setOpacity).mock.invocationCallOrder[0];
+      const rearmed = vi.mocked(strokes[0].setOpacityTransition).mock
+        .invocationCallOrder[0];
+
+      expect(cleared).toBeLessThan(set);
+      expect(set).toBeLessThan(rearmed);
+      expect(strokes[0].setOpacityTransition).toHaveBeenCalledWith(0.5, 'ease');
+    });
+
+    it('nextStroke should advance past the completed stroke and fade the next', async () => {
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      fadeAnimator.nextStroke();
+
+      expect(fadeAnimator.currentStroke).toBe(1);
+      expect(strokes[1].setOpacity).toHaveBeenCalledWith(1);
+    });
+
+    it('nextStroke should not touch dashoffset when fading', async () => {
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      fadeAnimator.nextStroke();
+
+      // Dispatching to the draw branch here would be silently wrong: the
+      // element is already fully drawn and only opacity should move.
+      expect(strokes[0].setProgress).not.toHaveBeenCalled();
+      expect(strokes[0].clearTransition).not.toHaveBeenCalled();
+    });
+
+    it('previousStroke should hide an in-flight stroke via opacity', async () => {
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      fadeAnimator.previousStroke();
+
+      expect(strokes[0].setOpacity).toHaveBeenCalledWith(0);
+      expect(strokes[0].setProgress).not.toHaveBeenCalled();
+    });
+
+    it('previousStroke should re-arm the opacity transition after hiding', async () => {
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      fadeAnimator.previousStroke();
+
+      const cleared = vi.mocked(strokes[0].clearOpacityTransition).mock
+        .invocationCallOrder[0];
+      const set = vi.mocked(strokes[0].setOpacity).mock.invocationCallOrder[0];
+      const rearmed = vi.mocked(strokes[0].setOpacityTransition).mock
+        .invocationCallOrder[0];
+
+      expect(cleared).toBeLessThan(set);
+      expect(set).toBeLessThan(rearmed);
+    });
+
+    it('previousStroke should cancel rather than step back when mid-fade', async () => {
+      // Step past stroke 0 first, so cancelling and stepping back would land on
+      // different indices — at index 0 the two are indistinguishable.
+      const step = fadeAnimator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+      await step;
+      expect(fadeAnimator.currentStroke).toBe(1);
+
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(250); // stroke 1 mid-fade
+      vi.clearAllMocks();
+
+      fadeAnimator.previousStroke();
+
+      // The cancel *is* the step back: stroke 1 is hidden and the index holds,
+      // rather than decrementing and hiding stroke 0 as well.
+      expect(fadeAnimator.currentStroke).toBe(1);
+      expect(strokes[1].setOpacity).toHaveBeenCalledWith(0);
+      expect(strokes[0].setOpacity).not.toHaveBeenCalled();
+    });
+
+    it('previousStroke should hide the prior stroke when nothing is animating', async () => {
+      // Don't await nextStroke() before advancing — its promise only settles
+      // once the stroke timer fires, which fake timers hold back.
+      const step = fadeAnimator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+      await step;
+      expect(fadeAnimator.currentStroke).toBe(1);
+      vi.clearAllMocks();
+
+      fadeAnimator.previousStroke();
+
+      expect(fadeAnimator.currentStroke).toBe(0);
+      expect(strokes[0].setOpacity).toHaveBeenCalledWith(0);
+      expect(strokes[0].setProgress).not.toHaveBeenCalled();
+    });
+  });
+
   describe('dispose', () => {
     it('should clear all state', () => {
       animator.setStrokes(strokes);
