@@ -43,6 +43,29 @@ export interface RenderedStroke {
 }
 
 /**
+ * Options handed to a renderer factory. Mirrors the shape of the bundled
+ * renderer option interfaces, so `(options) => new AnimCJKRenderer(options)`
+ * works without adapting anything.
+ */
+export interface RendererFactoryOptions {
+  /** Container element to render into */
+  container: HTMLElement;
+  /** Size of the SVG in pixels (square) */
+  size?: number;
+  /** Width of the SVG (CSS value) */
+  width?: number | string;
+  /** Height of the SVG (CSS value) */
+  height?: number | string;
+}
+
+/**
+ * Builds a renderer from the container and sizing Kaku already holds, so those
+ * values are declared once instead of being repeated on both the Kaku instance
+ * and a pre-built renderer (where they can silently disagree).
+ */
+export type RendererFactory = (options: RendererFactoryOptions) => Renderer;
+
+/**
  * Renderer interface for stroke visualization
  */
 export interface Renderer {

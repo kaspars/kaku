@@ -2,6 +2,7 @@ import type {
   DataProvider,
   CharacterData,
   Renderer,
+  RendererFactory,
   AnimatorOptions,
   AnimationState,
   AnimationEventType,
@@ -19,10 +20,22 @@ import { getCodePoints } from '../utils/unicode.js';
 export interface KakuOptions {
   /** Data provider for character stroke data */
   provider: DataProvider;
-  /** Container element to render into */
-  container: HTMLElement;
-  /** Custom renderer (defaults to SvgRenderer) */
-  renderer?: Renderer;
+  /**
+   * Container element to render into.
+   * Optional only when `renderer` is a pre-built instance, which already
+   * holds its own container.
+   */
+  container?: HTMLElement;
+  /**
+   * Custom renderer (defaults to SvgRenderer).
+   *
+   * Prefer the factory form — `(options) => new AnimCJKRenderer(options)` —
+   * which receives this instance's `container` and sizing, so they are
+   * declared once. Passing a pre-built renderer instance also works, but that
+   * renderer owns its own container and size, and the `container`/`size`/
+   * `width`/`height` options here are then ignored.
+   */
+  renderer?: Renderer | RendererFactory;
   /** Size of the SVG in pixels (square) */
   size?: number;
   /**
@@ -65,14 +78,7 @@ export class Kaku {
   constructor(options: KakuOptions) {
     this.provider = options.provider;
 
-    const resolvedWidth = options.size ?? options.width;
-    const resolvedHeight = options.size ?? options.height;
-
-    this.renderer = options.renderer ?? new SvgRenderer({
-      container: options.container,
-      width: resolvedWidth,
-      height: resolvedHeight,
-    });
+    this.renderer = Kaku.resolveRenderer(options);
 
     this.animator = new StrokeAnimator(options.animation);
 
@@ -84,6 +90,60 @@ export class Kaku {
       showOutline: options.showOutline,
       outlineColor: options.outlineColor,
     };
+  }
+
+  /**
+   * Build the renderer from the constructor options.
+   *
+   * A pre-built renderer instance carries its own container and dimensions, so
+   * the ones passed here cannot be applied to it. That used to fail silently —
+   * `size: 300` alongside a renderer built at 200 rendered at 200 with no
+   * indication — so the ignored options are now called out, and the factory
+   * form exists to avoid declaring them twice in the first place.
+   */
+  private static resolveRenderer(options: KakuOptions): Renderer {
+    const resolvedWidth = options.size ?? options.width;
+    const resolvedHeight = options.size ?? options.height;
+    const hasSizing = resolvedWidth !== undefined || resolvedHeight !== undefined;
+
+    if (typeof options.renderer === 'function') {
+      if (!options.container) {
+        throw new Error('Kaku requires a `container` when `renderer` is a factory');
+      }
+      return options.renderer({
+        container: options.container,
+        size: options.size,
+        width: options.width,
+        height: options.height,
+      });
+    }
+
+    if (options.renderer) {
+      if (options.container || hasSizing) {
+        const ignored = [
+          options.container ? 'container' : null,
+          hasSizing ? 'size/width/height' : null,
+        ]
+          .filter(Boolean)
+          .join(' and ');
+        console.warn(
+          `Kaku: \`${ignored}\` ignored because \`renderer\` is a pre-built instance ` +
+            `that owns its own container and dimensions. Pass a factory instead — ` +
+            `renderer: (options) => new MyRenderer(options) — to declare them once.`,
+        );
+      }
+      return options.renderer;
+    }
+
+    if (!options.container) {
+      throw new Error('Kaku requires either a `container` or a `renderer`');
+    }
+
+    return new SvgRenderer({
+      container: options.container,
+      width: resolvedWidth,
+      height: resolvedHeight,
+    });
   }
 
   /**

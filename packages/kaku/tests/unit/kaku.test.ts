@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Kaku } from '../../src/core/kaku';
+import { SvgRenderer } from '../../src/renderer/svg-renderer';
 import type { DataProvider, CharacterData, ProviderResult } from '../../src/types';
 
 // Mock provider
@@ -69,6 +70,94 @@ describe('Kaku', () => {
 
       expect(kaku.state).toBe('idle');
       expect(kaku.character).toBeNull();
+    });
+  });
+
+  describe('renderer resolution', () => {
+    // A renderer factory sees the container and sizing Kaku holds, so those
+    // are declared once instead of on both the instance and the renderer.
+    it('should call a renderer factory with the container and sizing', () => {
+      const factory = vi.fn(() => new SvgRenderer({ container }));
+
+      kaku = new Kaku({ provider, container, size: 300, renderer: factory });
+
+      expect(factory).toHaveBeenCalledWith({
+        container,
+        size: 300,
+        width: undefined,
+        height: undefined,
+      });
+    });
+
+    it('should pass width and height through to a renderer factory', () => {
+      const factory = vi.fn(() => new SvgRenderer({ container }));
+
+      kaku = new Kaku({ provider, container, width: 120, height: 80, renderer: factory });
+
+      expect(factory).toHaveBeenCalledWith({
+        container,
+        size: undefined,
+        width: 120,
+        height: 80,
+      });
+    });
+
+    it('should use the renderer the factory returns', async () => {
+      const built = new SvgRenderer({ container });
+      const render = vi.spyOn(built, 'render');
+
+      kaku = new Kaku({ provider, container, renderer: () => built });
+      await kaku.load('一');
+
+      expect(render).toHaveBeenCalled();
+      expect(kaku.getSvg()).toBe(built.getSvg());
+    });
+
+    it('should throw when a factory is given without a container', () => {
+      expect(
+        () => new Kaku({ provider, renderer: () => new SvgRenderer({ container }) })
+      ).toThrow(/requires a `container`/);
+    });
+
+    it('should throw when neither container nor renderer is given', () => {
+      expect(() => new Kaku({ provider })).toThrow(/either a `container` or a `renderer`/);
+    });
+
+    it('should accept a pre-built renderer with no container', () => {
+      kaku = new Kaku({ provider, renderer: new SvgRenderer({ container }) });
+
+      expect(kaku.state).toBe('idle');
+    });
+
+    // A pre-built renderer owns its own container and dimensions, so Kaku's
+    // cannot be applied to it. That used to be silent — size: 300 alongside a
+    // renderer built at 200 rendered at 200 with no indication.
+    it('should warn that sizing is ignored for a pre-built renderer', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      kaku = new Kaku({ provider, size: 300, renderer: new SvgRenderer({ container }) });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain('size/width/height');
+      warn.mockRestore();
+    });
+
+    it('should warn about both container and sizing when both are ignored', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      kaku = new Kaku({ provider, container, size: 300, renderer: new SvgRenderer({ container }) });
+
+      expect(warn.mock.calls[0][0]).toContain('container and size/width/height');
+      warn.mockRestore();
+    });
+
+    it('should not warn when a pre-built renderer is the only source of both', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      kaku = new Kaku({ provider, renderer: new SvgRenderer({ container }) });
+
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
   });
 

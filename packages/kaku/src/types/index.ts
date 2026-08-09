@@ -13,6 +13,8 @@ export type {
   Renderer,
   RenderedStroke,
   RenderOptions,
+  RendererFactory,
+  RendererFactoryOptions,
 } from './renderer.js';
 
 export type {
