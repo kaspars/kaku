@@ -168,6 +168,21 @@ to get wrong when editing:
   try/catch and logs to `console.error`, so one bad subscriber cannot break the
   animation.
 
+### Transition channels on `RenderedStroke`
+
+`element.style.transition` is a single CSS declaration, but `RenderedStroke`
+exposes two independent channels — dashoffset (`setTransition`/
+`clearTransition`) and opacity (`setOpacityTransition`/
+`clearOpacityTransition`). Both `stroke-path.ts` and `animcjk-renderer.ts`
+therefore keep the two strings in closure variables and recompose the whole
+declaration on every change; clearing a channel drops it from the list and
+falls back to `'none'` when neither is active.
+
+Do not write `element.style.transition` directly from a setter. That was the
+original implementation, and it meant the two setters clobbered each other and
+either `clear*` wiped both. It was invisible only because the effect branches
+are mutually exclusive — a combined draw-and-fade effect would have broken.
+
 ### AnimCJKRenderer specifics
 
 `AnimCJKRenderer` embeds the source SVG but **removes its `<style>` elements**,
@@ -214,7 +229,10 @@ npm run test:coverage # Coverage report
 1. Create `src/renderer/my-renderer.ts`
 2. Implement `Renderer` interface (render, getSvg, clear, dispose)
 3. Return `RenderedStroke` objects with setProgress/setOpacity/setTransition methods
-4. Export from `src/index.ts`
+4. Accept a constructor options object shaped like `RendererFactoryOptions`
+   (`container`, `size`, `width`, `height`) so users can pass
+   `renderer: (options) => new MyRenderer(options)` to `Kaku` without an adapter
+5. Export from `src/index.ts`
 
 ### Adding Animation Events
 

@@ -7,6 +7,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added (`@kaspars/kaku`)
+- `renderer` now accepts a factory — `(options) => new AnimCJKRenderer(options)`
+  — which receives the `container`, `size`, `width` and `height` already given
+  to `Kaku`, so they are declared once instead of on both objects. Exported as
+  the `RendererFactory` and `RendererFactoryOptions` types.
+
+### Fixed (`@kaspars/kaku`)
+- The dashoffset and opacity transition channels on `RenderedStroke` are now
+  independent. Both wrote the single `style.transition` property, so
+  `setTransition()` and `setOpacityTransition()` overwrote each other and
+  either `clear*` call wiped both. Affected `SvgRenderer` and
+  `AnimCJKRenderer` alike.
+- `container`, `size`, `width` and `height` are no longer silently ignored when
+  a pre-built `renderer` instance is passed. Kaku now warns that the renderer
+  owns its own, and points at the factory form. `container` is correspondingly
+  optional when `renderer` is a pre-built instance, and `Kaku` throws when
+  neither is supplied.
+
+---
+
 ## [1.3.0] – 2026-03-19
 
 ### Added (`@kaspars/kaku`)

@@ -152,6 +152,18 @@ The provider (`packages/kaku/src/providers/animcjk-provider.ts`) handles:
 
 ### Renderer: `AnimCJKRenderer`
 
+AnimCJK needs its own renderer, wired up as a factory so `Kaku` supplies the
+container and size:
+
+```typescript
+const kaku = new Kaku({
+  provider,
+  container: document.getElementById('canvas'),
+  size: 200,
+  renderer: (options) => new AnimCJKRenderer(options),
+});
+```
+
 The renderer (`packages/kaku/src/renderer/animcjk-renderer.ts`) embeds the native AnimCJK SVG and controls strokes via JavaScript:
 
 1. Parses `rawSvg` and strips the embedded `<style>` block

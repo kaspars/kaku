@@ -48,13 +48,13 @@ const provider = new AnimCJKProvider({
   language: 'ja'  // 'ja' | 'zh-Hans' | 'zh-Hant' | 'ko'
 });
 
-const container = document.getElementById('canvas');
-
 const kaku = new Kaku({
   provider,
-  renderer: new AnimCJKRenderer({ container, size: 200 }),
-  container,
+  container: document.getElementById('canvas'),
   size: 200,
+  // Factory form — Kaku passes its own container and sizing to the renderer,
+  // so they are declared once.
+  renderer: (options) => new AnimCJKRenderer(options),
   showOutline: true,
   animation: { strokeDuration: 0.5 }
 });
@@ -74,8 +74,9 @@ Main class that orchestrates character loading, rendering, and animation.
 ```typescript
 interface KakuOptions {
   provider: DataProvider;      // Data provider (required)
-  container: HTMLElement;      // Container element (required)
-  renderer?: Renderer;         // Custom renderer (default: SvgRenderer)
+  container?: HTMLElement;     // Container element (required unless `renderer`
+                               //   is a pre-built instance holding its own)
+  renderer?: Renderer | RendererFactory;  // Custom renderer (default: SvgRenderer)
   size?: number;               // SVG size in pixels (default: 200)
   strokeColor?: string;        // Stroke color (default: '#000')
   strokeWidth?: number;        // Stroke width (default: 3)
@@ -95,6 +96,26 @@ interface AnimatorOptions {
   strokeEffect?: 'draw' | 'fade' | 'none';  // Animation effect (default: 'draw')
 }
 ```
+
+#### Custom Renderers
+
+`renderer` accepts either form:
+
+```typescript
+// Factory (preferred) — receives { container, size, width, height } from Kaku
+renderer: (options) => new AnimCJKRenderer(options)
+
+// Pre-built instance — owns its own container and dimensions
+renderer: new AnimCJKRenderer({ container, size: 200 })
+```
+
+With a pre-built instance, Kaku's own `container`/`size`/`width`/`height` cannot
+be applied to it and are ignored — passing both risks them disagreeing silently
+(`size: 300` on Kaku with a renderer built at 200 renders at 200). Kaku warns
+when you do this. The factory form takes the values from Kaku, so they are
+declared once.
+
+`container` is required except when `renderer` is a pre-built instance.
 
 #### Stroke Effects
 

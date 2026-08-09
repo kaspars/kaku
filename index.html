@@ -641,11 +641,9 @@
 
     function createRenderer() {
       if (window.currentProvider === 'animcjk') {
-        const size = getAnimSize();
-        return new AnimCJKRenderer({
-          container: document.getElementById('canvas'),
-          size: size,
-        });
+        // Factory form: Kaku hands over its own container and size, so they
+        // are declared once instead of on both the instance and the renderer.
+        return (options) => new AnimCJKRenderer(options);
       }
       return undefined; // Kaku uses SvgRenderer by default
     }
@@ -920,12 +918,9 @@
       return animcjkProviders[window.practiceCharClass];
     }
 
-    function createPracticeRenderer(size) {
+    function createPracticeRenderer() {
       if (window.practiceProvider === 'animcjk') {
-        return new AnimCJKRenderer({
-          container: document.getElementById('practice-canvas'),
-          size: size,
-        });
+        return (options) => new AnimCJKRenderer(options);
       }
       return undefined;
     }
@@ -972,7 +967,7 @@
         const size = getPracticeSize();
         const isAnimCJK = window.practiceProvider === 'animcjk';
         const provider = getPracticeProvider();
-        const renderer = createPracticeRenderer(size);
+        const renderer = createPracticeRenderer();
 
         const kakuOptions = {
           provider,
