@@ -10,6 +10,9 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: ['src/**/*.ts'],
+      // Type-only files compile away to nothing — they always report 0% and
+      // drag the average down without there being anything to cover.
+      exclude: ['src/types/**'],
     },
   },
 });

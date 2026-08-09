@@ -864,6 +864,153 @@ describe('StrokeAnimator', () => {
     });
   });
 
+  describe('manual stepping with none effect', () => {
+    let noneAnimator: StrokeAnimator;
+
+    beforeEach(() => {
+      noneAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        strokeEffect: 'none',
+      });
+      noneAnimator.setStrokes(strokes);
+      vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+      noneAnimator.dispose();
+    });
+
+    it('nextStroke should complete an in-flight stroke via progress', async () => {
+      noneAnimator.play();
+      await vi.advanceTimersByTimeAsync(250); // inside the stroke's time slot
+      vi.clearAllMocks();
+
+      noneAnimator.nextStroke();
+
+      expect(strokes[0].setProgress).toHaveBeenCalledWith(1);
+    });
+
+    it('nextStroke should not touch transitions when effect is none', async () => {
+      noneAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      noneAnimator.nextStroke();
+
+      // The whole point of 'none' is that no transition is ever installed;
+      // falling through to the draw or fade branch would install one.
+      expect(strokes[0].clearTransition).not.toHaveBeenCalled();
+      expect(strokes[0].setTransition).not.toHaveBeenCalled();
+      expect(strokes[0].setOpacity).not.toHaveBeenCalled();
+      expect(strokes[0].setOpacityTransition).not.toHaveBeenCalled();
+    });
+
+    it('nextStroke should advance past the completed stroke and show the next', async () => {
+      noneAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      noneAnimator.nextStroke();
+
+      expect(noneAnimator.currentStroke).toBe(1);
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(1);
+    });
+
+    it('previousStroke should hide an in-flight stroke via progress', async () => {
+      noneAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      noneAnimator.previousStroke();
+
+      expect(strokes[0].setProgress).toHaveBeenCalledWith(0);
+      expect(strokes[0].clearTransition).not.toHaveBeenCalled();
+      expect(strokes[0].setOpacity).not.toHaveBeenCalled();
+    });
+
+    it('previousStroke should cancel rather than step back when mid-slot', async () => {
+      const step = noneAnimator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+      await step;
+      expect(noneAnimator.currentStroke).toBe(1);
+
+      noneAnimator.play();
+      await vi.advanceTimersByTimeAsync(250);
+      vi.clearAllMocks();
+
+      noneAnimator.previousStroke();
+
+      expect(noneAnimator.currentStroke).toBe(1);
+      expect(strokes[1].setProgress).toHaveBeenCalledWith(0);
+      expect(strokes[0].setProgress).not.toHaveBeenCalled();
+    });
+
+    it('previousStroke should hide the prior stroke when nothing is animating', async () => {
+      const step = noneAnimator.nextStroke();
+      await vi.advanceTimersByTimeAsync(500);
+      await step;
+      vi.clearAllMocks();
+
+      noneAnimator.previousStroke();
+
+      expect(noneAnimator.currentStroke).toBe(0);
+      expect(strokes[0].setProgress).toHaveBeenCalledWith(0);
+      expect(strokes[0].clearTransition).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reset with non-default effects', () => {
+    it('should hide strokes via opacity when effect is fade', async () => {
+      const fadeAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        strokeEffect: 'fade',
+      });
+      fadeAnimator.setStrokes(strokes);
+      fadeAnimator.play();
+      await vi.advanceTimersByTimeAsync(500);
+      vi.clearAllMocks();
+
+      fadeAnimator.reset();
+
+      for (const stroke of strokes) {
+        expect(stroke.setOpacity).toHaveBeenCalledWith(0);
+        // Cleared before the jump, restored after — same invariant as stepping
+        const cleared = vi.mocked(stroke.clearOpacityTransition).mock
+          .invocationCallOrder[0];
+        const set = vi.mocked(stroke.setOpacity).mock.invocationCallOrder[0];
+        const rearmed = vi.mocked(stroke.setOpacityTransition).mock
+          .invocationCallOrder[0];
+        expect(cleared).toBeLessThan(set);
+        expect(set).toBeLessThan(rearmed);
+        expect(stroke.setProgress).not.toHaveBeenCalled();
+      }
+
+      fadeAnimator.dispose();
+    });
+
+    it('should hide strokes via progress when effect is none', async () => {
+      const noneAnimator = new StrokeAnimator({
+        strokeDuration: 0.5,
+        strokeEffect: 'none',
+      });
+      noneAnimator.setStrokes(strokes);
+      noneAnimator.play();
+      await vi.advanceTimersByTimeAsync(500);
+      vi.clearAllMocks();
+
+      noneAnimator.reset();
+
+      for (const stroke of strokes) {
+        expect(stroke.setProgress).toHaveBeenCalledWith(0);
+        expect(stroke.clearTransition).not.toHaveBeenCalled();
+        expect(stroke.setTransition).not.toHaveBeenCalled();
+        expect(stroke.setOpacity).not.toHaveBeenCalled();
+      }
+
+      noneAnimator.dispose();
+    });
+  });
+
   describe('dispose', () => {
     it('should clear all state', () => {
       animator.setStrokes(strokes);
