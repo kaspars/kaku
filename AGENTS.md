@@ -59,7 +59,7 @@ Runs on Node 24 — the project tracks the current LTS, and the Pages workflow
 pins the same major. Tests, builds, and the dev server all run through npm
 workspaces from the repo root.
 
-Full suite: 246 tests in `kaku`, 79 in `kaku-ren`.
+Full suite: 269 tests in `kaku`, 79 in `kaku-ren`.
 
 ## Demo
 

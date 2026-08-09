@@ -144,6 +144,90 @@ describe('SvgRenderer', () => {
     });
   });
 
+  describe('outline', () => {
+    it('should not render outline by default', () => {
+      renderer.render(multiStrokeData);
+
+      // Only the animated strokes, no faint background copies
+      expect(container.querySelectorAll('path')).toHaveLength(2);
+    });
+
+    it('should render one outline path per stroke when showOutline is true', () => {
+      renderer.render(multiStrokeData, { showOutline: true });
+
+      // Outline copy + animated copy for each stroke
+      expect(container.querySelectorAll('path')).toHaveLength(4);
+    });
+
+    it('should use the default outline color', () => {
+      renderer.render(mockCharacterData, { showOutline: true });
+
+      const outline = container.querySelectorAll('path')[0];
+      expect(outline.getAttribute('stroke')).toBe('#ccc');
+    });
+
+    it('should use custom outline color', () => {
+      renderer.render(mockCharacterData, {
+        showOutline: true,
+        outlineColor: '#eee',
+      });
+
+      const outline = container.querySelectorAll('path')[0];
+      expect(outline.getAttribute('stroke')).toBe('#eee');
+    });
+
+    it('should draw outline behind the animated strokes', () => {
+      renderer.render(mockCharacterData, {
+        showOutline: true,
+        strokeColor: '#000',
+        outlineColor: '#eee',
+      });
+
+      const paths = Array.from(container.querySelectorAll('path'));
+      // Document order = paint order: outline first, animated stroke on top
+      expect(paths[0].getAttribute('stroke')).toBe('#eee');
+      expect(paths[1].getAttribute('stroke')).toBe('#000');
+    });
+
+    it('should match outline geometry and width to the stroke it backs', () => {
+      renderer.render(mockCharacterData, { showOutline: true, strokeWidth: 5 });
+
+      const [outline, stroke] = Array.from(container.querySelectorAll('path'));
+      expect(outline.getAttribute('d')).toBe(mockCharacterData.strokes[0].pathData);
+      expect(outline.getAttribute('d')).toBe(stroke.getAttribute('d'));
+      expect(outline.getAttribute('stroke-width')).toBe('5');
+    });
+
+    it('should leave outline paths fully visible', () => {
+      const strokes = renderer.render(mockCharacterData, { showOutline: true });
+
+      // The animated stroke starts hidden via dashoffset; the outline must not,
+      // otherwise there is nothing to trace over.
+      const [outline] = Array.from(container.querySelectorAll('path'));
+      expect(outline.style.strokeDashoffset).toBe('');
+      expect(strokes[0].element.style.strokeDashoffset).toBe(
+        String(strokes[0].length)
+      );
+    });
+
+    it('should not return outline paths as rendered strokes', () => {
+      const strokes = renderer.render(multiStrokeData, { showOutline: true });
+
+      // The animator must only ever drive the animated copies
+      expect(strokes).toHaveLength(2);
+      for (const rendered of strokes) {
+        expect(rendered.element.getAttribute('stroke')).not.toBe('#ccc');
+      }
+    });
+
+    it('should clear outline paths on re-render without outline', () => {
+      renderer.render(mockCharacterData, { showOutline: true });
+      renderer.render(mockCharacterData, { showOutline: false });
+
+      expect(container.querySelectorAll('path')).toHaveLength(1);
+    });
+  });
+
   describe('getSvg', () => {
     it('should return SVG element after render', () => {
       renderer.render(mockCharacterData);
