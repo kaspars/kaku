@@ -117,9 +117,45 @@ interface KakuRenOptions {
 interface EvaluationResult {
   accepted: boolean;
   score: number;             // 0-1, higher is better
-  rejection?: 'too-short' | 'wrong-direction' | 'low-score';
+  rejection?: 'too-short' | 'wrong-direction';
 }
 ```
+
+`rejection` is only set for the two hard rejections — a stroke that is too short
+(or has fewer than two points) and one drawn in the wrong direction. Both report
+`score: 0`. A stroke that simply scored below `acceptThreshold` has
+`accepted: false` with its real score and **no** `rejection` value.
+
+### EvaluatorOptions
+
+Passed as the `evaluation` option to tune scoring:
+
+```typescript
+interface EvaluatorOptions {
+  sampleCount?: number;      // Points compared per stroke (default: 50)
+  acceptThreshold?: number;  // Minimum score to accept (default: 0.5)
+  minLengthRatio?: number;   // Min user length vs expected (default: 2/3)
+  evaluationRatio?: number;  // Higher = more lenient (default: 1)
+}
+```
+
+Scoring compares the user's stroke against the expected path in viewBox space:
+both are resampled to `sampleCount` equidistant points, the average distance
+between corresponding points is normalised by the expected stroke length (making
+it scale-invariant), and short strokes get a leniency boost since they are
+harder to hit precisely. Raise `evaluationRatio` or lower `acceptThreshold` to
+be more forgiving.
+
+### Lower-level Exports
+
+The evaluation internals are exported for custom scoring or tooling:
+
+| Export | Description |
+|--------|-------------|
+| `evaluateStroke(userPoints, expectedPoints, expectedLength, scaleFactor, options?)` | Pure scoring function — no DOM required |
+| `sampleExpectedStroke(path, N?)` | Sample N equidistant points from an `SVGPathElement` |
+| `resamplePoints(points, N)` | Resample any point array to N equidistant points |
+| `StrokeInput` | The canvas overlay on its own, without evaluation |
 
 ## Credits
 

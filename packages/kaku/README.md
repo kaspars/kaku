@@ -119,6 +119,20 @@ interface AnimatorOptions {
 | `getRenderedStrokes(): RenderedStroke[]` | Get rendered stroke objects for external control |
 | `dispose(): void` | Clean up resources |
 
+#### Manual stepping
+
+`nextStroke()` and `previousStroke()` work while an animation is playing, but
+they interrupt it:
+
+- `nextStroke()` pauses, snaps the in-progress stroke to fully drawn, and then
+  animates the following one.
+- `previousStroke()` pauses and hides the in-progress stroke. That cancellation
+  *is* the step back, so the stroke index stays put; call it again to step back
+  further.
+- `pause()` stops the sequence but does not freeze a stroke that is already
+  transitioning — that stroke finishes drawing, and its `strokeComplete` event
+  does not fire.
+
 #### Properties
 
 | Property | Type | Description |
@@ -249,6 +263,57 @@ interface DataProvider {
   canHandle(char: string): boolean;
 }
 ```
+
+`getCharacter` returns a result object rather than throwing:
+
+```typescript
+type ProviderResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: Error };
+```
+
+`Kaku.load()` rethrows the `error` from a failed result, so callers can use
+plain `try`/`catch`.
+
+## Custom Renderers
+
+Pass any `Renderer` implementation as the `renderer` option. It receives the
+`CharacterData` and must return one `RenderedStroke` per stroke — the animator
+drives those objects and never touches the DOM itself.
+
+```typescript
+interface Renderer {
+  render(data: CharacterData, options?: RenderOptions): RenderedStroke[];
+  getSvg(): SVGSVGElement;
+  clear(): void;
+  dispose(): void;
+}
+
+interface RenderedStroke {
+  element: SVGPathElement;
+  length: number;
+  stroke: Stroke;
+  setProgress(progress: number): void;      // 0 = hidden, 1 = fully drawn
+  setTransition(duration: number, easing?: string): void;
+  clearTransition(): void;
+  setOpacity(opacity: number): void;        // used by the 'fade' effect
+  setOpacityTransition(duration: number, easing?: string): void;
+  clearOpacityTransition(): void;
+}
+```
+
+## Lower-level Exports
+
+The building blocks are exported too, for custom renderers and tooling:
+
+| Export | Description |
+|--------|-------------|
+| `StrokeAnimator` | The animator on its own — drive any `RenderedStroke[]` without `Kaku` |
+| `SvgRenderer`, `AnimCJKRenderer` | The bundled renderers |
+| `createStrokePath(stroke, options)` | Build a `RenderedStroke` from stroke data |
+| `createSvg`, `createPath`, `createLine`, `createGroup`, `createSvgElement` | SVG element helpers |
+| `toHex(char, padLength?)` | Character to zero-padded lowercase hex code point |
+| `getCodePoints(str)` | Code points of a string, surrogate-pair aware |
 
 ## Browser Support
 

@@ -30,9 +30,10 @@ export interface AnimCJKRendererOptions {
  * SVG renderer for AnimCJK character data.
  *
  * Embeds the native AnimCJK SVG with its shape outlines and clip-path
- * definitions, but strips the embedded animation CSS. Strokes are
- * controlled via CSS class toggling — adding "visible" to a stroke
- * path reveals it through its clip region.
+ * definitions, but strips the embedded animation CSS (which would otherwise
+ * self-animate and fight the animator). Strokes are revealed by animating
+ * `stroke-dashoffset` on the direction polylines, each clipped to its shape
+ * outline — the same technique SvgRenderer uses, applied to AnimCJK geometry.
  */
 export class AnimCJKRenderer implements Renderer {
   private container: HTMLElement;

@@ -25,6 +25,8 @@ open http://localhost:5173
 
 ## Development
 
+Requires Node 20+.
+
 ```bash
 npm install              # Install dependencies
 npm run dev              # Start dev server with demo
@@ -34,6 +36,13 @@ npm test -w @kaspars/kaku-ren     # Run kaku-ren tests only
 npm run test:coverage    # Run all tests with coverage
 npm run build            # Build all packages
 ```
+
+The demo imports the TypeScript sources directly, so `npm run dev` picks up
+source edits without building the packages first.
+
+Both packages are versioned and released together — see [CHANGELOG.md](CHANGELOG.md)
+for release history, and [`docs/`](docs/) for the KanjiVG and AnimCJK data
+format documentation.
 
 ## Credits
 

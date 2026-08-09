@@ -143,6 +143,48 @@ The animator has these states:
           reset()      └───────────┘
 ```
 
+### Control flow subtleties
+
+`StrokeAnimator` sequences strokes with a `setTimeout` per stroke rather than
+tracking CSS transition events. Several behaviours follow from that and are easy
+to get wrong when editing:
+
+- **`pause()` stops sequencing, it does not freeze a stroke.** The pending
+  timeout is cleared, but a stroke already mid-transition finishes drawing on
+  screen. `isAnimatingStroke` is cleared too, so the paused stroke's
+  `strokeComplete` never fires and `currentStroke` does not advance.
+- **`nextStroke()` while playing** pauses, then — if a stroke was mid-flight —
+  completes it instantly and advances past it, before animating the next one.
+- **`previousStroke()` while playing** cancels and hides the in-flight stroke
+  and returns; the cancel *is* the step back, so the index does not decrement.
+  Only when nothing is animating does it decrement and hide the prior stroke.
+- **Instant show/hide re-arms the transition.** `showStrokeInstantly()`,
+  `hideStroke()`, and `reset()` clear the transition, set the value, force a
+  reflow via `getBoundingClientRect()`, then restore the transition. Dropping
+  the reflow makes the "instant" change animate instead.
+- **Looping splits `loopDelay` in half** — wait half, `reset()` to a clean pad,
+  wait the other half, then `play()`.
+- **Handler exceptions are swallowed.** `emit()` wraps each listener in
+  try/catch and logs to `console.error`, so one bad subscriber cannot break the
+  animation.
+
+### AnimCJKRenderer specifics
+
+`AnimCJKRenderer` embeds the source SVG but **removes its `<style>` elements**,
+replacing them with its own rules — otherwise AnimCJK's embedded `@keyframes`
+would self-animate and fight the animator. It then re-creates the visibility
+control in JS:
+
+- Shape paths (`path[id]`) are filled with `outlineColor` when `showOutline` is
+  set, otherwise `fill: none`.
+- Stroke polylines (`path[clip-path]`) get `stroke-width: 128` and are revealed
+  via `stroke-dashoffset`, clipped to their shape outline.
+- Path length is hardcoded to `3337` (matching AnimCJK's own dasharray) instead
+  of measured with `getTotalLength()`, so the sweep speed stays consistent
+  across strokes.
+- Multi-part strokes share a `--d` delay; every element in the group is updated
+  together by the returned `RenderedStroke`, whose `element` is the first part.
+
 ## Testing
 
 Tests use Vitest with jsdom. Key considerations:
