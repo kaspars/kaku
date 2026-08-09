@@ -25,7 +25,7 @@ open http://localhost:5173
 
 ## Development
 
-Requires Node 20+.
+Requires Node 24 (the current LTS).
 
 ```bash
 npm install              # Install dependencies

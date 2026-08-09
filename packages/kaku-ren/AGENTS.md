@@ -116,5 +116,13 @@ Vitest + jsdom. Key considerations:
 
 ## Dependencies
 
-- **Runtime**: `@kaspars/kaku` (peer dependency)
+- **Runtime**: `@kaspars/kaku` — a regular `dependencies` entry, not a peer dep.
+  Only imported `import type`, so nothing from Kaku is emitted into the bundle;
+  the build still externalizes `@kaspars/kaku` so a future value import stays a
+  real import rather than a bundled second copy of the library.
 - **Dev**: TypeScript, Vite, Vitest, jsdom
+
+The declared range is `^1.0.0`, but `KakuRen` actually needs Kaku **≥ 1.1.0** —
+`showHint()` calls `kaku.getRenderedStrokes()`, which did not exist in 1.0.0.
+Worth tightening to the current minor at the next release, since the two
+packages ship in lockstep anyway.
