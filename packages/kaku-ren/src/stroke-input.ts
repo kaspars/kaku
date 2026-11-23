@@ -19,8 +19,11 @@ export interface StrokeInputOptions {
   strokeColor?: string;
   /** Stroke width in CSS pixels (default: 4) */
   strokeWidth?: number;
-  /** Called when user finishes a stroke */
-  onStrokeEnd?: (points: Point[]) => void;
+  /**
+   * Called when user finishes a stroke, with the points in canvas pixels and
+   * the time of each in ms since the stroke began
+   */
+  onStrokeEnd?: (points: Point[], times: number[]) => void;
 }
 
 /**
@@ -30,12 +33,14 @@ export class StrokeInput {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private points: Point[] = [];
+  private times: number[] = [];
+  private startTime = 0;
   private drawing = false;
   private _enabled = true;
 
   private readonly strokeColor: string;
   private strokeWidth: number;
-  private readonly onStrokeEnd?: (points: Point[]) => void;
+  private readonly onStrokeEnd?: (points: Point[], times: number[]) => void;
 
   // Bound handlers for cleanup
   private handlePointerDown: (e: PointerEvent) => void;
@@ -154,18 +159,18 @@ export class StrokeInput {
 
     this.drawing = true;
     this.points = [];
+    this.times = [];
+    this.startTime = e.timeStamp;
     this.clear();
 
     this.canvas.setPointerCapture(e.pointerId);
-    const pos = this.getPointerPos(e);
-    this.points.push(pos);
+    this.capture(e);
   }
 
   private onPointerMove(e: PointerEvent): void {
     if (!this.drawing) return;
 
-    const pos = this.getPointerPos(e);
-    this.points.push(pos);
+    this.capture(e);
     this.redraw();
   }
 
@@ -175,7 +180,7 @@ export class StrokeInput {
     this.drawing = false;
 
     if (this.points.length >= 2) {
-      this.onStrokeEnd?.(this.points.slice());
+      this.onStrokeEnd?.(this.points.slice(), this.times.slice());
     }
   }
 
@@ -183,6 +188,11 @@ export class StrokeInput {
     if (!this.drawing) return;
     this.drawing = false;
     this.clear();
+  }
+
+  private capture(e: PointerEvent): void {
+    this.points.push(this.getPointerPos(e));
+    this.times.push(Math.max(0, Math.round(e.timeStamp - this.startTime)));
   }
 
   private getPointerPos(e: PointerEvent): Point {

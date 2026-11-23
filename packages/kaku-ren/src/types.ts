@@ -30,4 +30,30 @@ export interface EvaluatorOptions {
   minLengthRatio?: number;
   /** Base evaluation ratio — higher = more lenient (default: 1) */
   evaluationRatio?: number;
+  /**
+   * Shortest length a stroke is judged by, as a fraction of the viewBox
+   * size (default: 0.3). A shorter stroke gets the same absolute position
+   * tolerance as one of this length, and a gentler minimum length.
+   */
+  shortStrokeFloor?: number;
+  /**
+   * Width of the character's viewBox: 109 for KanjiVG, 1024 for AnimCJK
+   * (default: 109). KakuRen sets it from the loaded character.
+   */
+  viewBoxSize?: number;
+}
+
+/**
+ * One stroke the user drew, as evaluated.
+ */
+export interface StrokeAttempt {
+  /** Index of the stroke that was expected */
+  index: number;
+  result: EvaluationResult;
+  /** The user's points in viewBox units, as captured (not resampled) */
+  points: Point[];
+  /** Time of each point in ms since the stroke began */
+  times: number[];
+  /** Length of the expected stroke in viewBox units */
+  expectedLength: number;
 }

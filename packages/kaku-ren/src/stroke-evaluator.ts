@@ -4,6 +4,8 @@ const DEFAULT_SAMPLE_COUNT = 50;
 const DEFAULT_ACCEPT_THRESHOLD = 0.5;
 const DEFAULT_MIN_LENGTH_RATIO = 2 / 3;
 const DEFAULT_EVALUATION_RATIO = 1;
+const DEFAULT_VIEWBOX_SIZE = 109; // KanjiVG
+const DEFAULT_SHORT_STROKE_FLOOR = 0.3;
 
 /**
  * Evaluate a user-drawn stroke against expected sample points.
@@ -25,6 +27,10 @@ export function evaluateStroke(
   const minLengthRatio = options.minLengthRatio ?? DEFAULT_MIN_LENGTH_RATIO;
   const evaluationRatio = options.evaluationRatio ?? DEFAULT_EVALUATION_RATIO;
   const N = options.sampleCount ?? DEFAULT_SAMPLE_COUNT;
+  // Strokes shorter than the floor are judged as if they had its length:
+  // placing a dot is no more precise than placing a longer stroke.
+  const floor = (options.shortStrokeFloor ?? DEFAULT_SHORT_STROKE_FLOOR) * (options.viewBoxSize ?? DEFAULT_VIEWBOX_SIZE);
+  const judgedLength = Math.max(expectedLength, floor);
 
   if (userPoints.length < 2 || expectedPoints.length < 2) {
     return { score: 0, accepted: false, rejection: 'too-short' };
@@ -47,22 +53,19 @@ export function evaluateStroke(
   // Compute user stroke length in viewBox space
   const userLength = pathLength(scaledUser);
 
-  // Reject if user stroke is too short
-  if (userLength < expectedLength * minLengthRatio) {
+  // Reject if user stroke is too short. Below the floor the ratio eases off
+  // with the square root of the length, as dots are drawn as quick flicks.
+  if (userLength < expectedLength * minLengthRatio * Math.sqrt(expectedLength / judgedLength)) {
     return { score: 0, accepted: false, rejection: 'too-short' };
   }
 
   // Compute average distance between corresponding points
   const avgDistance = averagePointDistance(scaledUser, expectedPoints);
 
-  // Normalize by expected stroke length
-  const normalizedDistance = avgDistance / expectedLength;
+  // Normalize by the stroke length, or the floor for short strokes
+  const normalizedDistance = avgDistance / judgedLength;
 
-  // Apply length-based boost for short strokes
-  const boost = lengthBoost(expectedLength);
-
-  const T = evaluationRatio * boost;
-  const score = Math.max(0, Math.min(1, 1 - normalizedDistance / T));
+  const score = Math.max(0, Math.min(1, 1 - normalizedDistance / evaluationRatio));
 
   return {
     score,
@@ -180,20 +183,4 @@ function distance(a: Point, b: Point): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
-}
-
-/**
- * Compute length-based scoring boost for short strokes.
- * Short strokes are harder to match precisely, so we're more lenient.
- */
-function lengthBoost(expectedLength: number): number {
-  let boost = 1.0;
-
-  if (expectedLength < 20) {
-    boost = Math.exp((20 - expectedLength) / 8);
-  } else if (expectedLength < 30) {
-    boost = 1 + (30 - expectedLength) * 0.03;
-  }
-
-  return Math.min(boost, 2.0);
 }

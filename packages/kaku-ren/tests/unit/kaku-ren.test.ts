@@ -664,4 +664,59 @@ describe('KakuRen', () => {
       await vi.advanceTimersByTimeAsync(500);
     });
   });
+
+  describe('stroke attempts', () => {
+    it('reports every stroke with its points in viewBox units', async () => {
+      const onStroke = vi.fn();
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, onStroke });
+
+      drawStroke(getCanvas(container), badStroke());
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(2000);
+      drawStroke(getCanvas(container), goodStroke(20));
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(onStroke).toHaveBeenCalledTimes(2);
+      const [rejected, accepted] = onStroke.mock.calls.map(c => c[0]);
+      expect(rejected.index).toBe(0);
+      expect(rejected.result.accepted).toBe(false);
+      expect(rejected.points).toHaveLength(3);
+      expect(rejected.points[0].x).toBeCloseTo(10);
+      expect(rejected.points[2].x).toBeCloseTo(20);
+      expect(rejected.times).toHaveLength(3);
+      expect(rejected.times[0]).toBe(0);
+      expect(rejected.expectedLength).toBeCloseTo(90);
+      expect(accepted.index).toBe(0);
+      expect(accepted.result.accepted).toBe(true);
+    });
+
+    it('judges short strokes by the size of the character box', async () => {
+      const onStroke = vi.fn();
+      const kaku = makeMockKaku(1);
+      kaku.getCharacterData.mockReturnValue({
+        character: '言',
+        codePoints: [0x8a00],
+        viewBox: [0, 0, 1024, 1024],
+        strokes: [{ pathData: 'M434,78 L579,193', metadata: { index: 0 } }],
+        source: 'test',
+      } as any);
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, onStroke });
+
+      // the dot, 120 units to its side
+      const s = 200 / 1024;
+      const len = Math.hypot(145, 115);
+      const dx = (-115 / len) * 120, dy = (145 / len) * 120;
+      const pts = Array.from({ length: 10 }, (_, i) => {
+        const t = i / 9;
+        return { x: (434 + 145 * t + dx) * s, y: (78 + 115 * t + dy) * s };
+      });
+      drawStroke(getCanvas(container), pts);
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(onStroke.mock.calls[0][0].result.accepted).toBe(true);
+    });
+  });
 });

@@ -253,3 +253,73 @@ describe('evaluateStroke', () => {
     });
   });
 });
+
+/**
+ * AnimCJK draws on a 1024 box. Its shortest strokes (dots, ticks) are about
+ * 150–250 units long, its longest about 800. The first stroke of 言 runs
+ * (434,78)→(579,193); its long horizontal is about 810 units.
+ */
+describe('evaluateStroke on a 1024 box', () => {
+  const N = 50;
+  const scale = 280 / 1024;
+  const box = { viewBoxSize: 1024 };
+  const line = (x1: number, y1: number, x2: number, y2: number, n = N): Point[] =>
+    Array.from({ length: n }, (_, i) => {
+      const t = i / (n - 1);
+      return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+    });
+  const canvas = (pts: Point[]) => pts.map(p => ({ x: p.x * scale, y: p.y * scale }));
+
+  const dot = line(434, 78, 579, 193);
+  const dotLength = Math.hypot(145, 115); // ≈185
+  // unit vectors along and across the dot
+  const ax = 145 / dotLength, ay = 115 / dotLength;
+  const shift = (pts: Point[], along: number, across: number) =>
+    pts.map(p => ({ x: p.x + ax * along - ay * across, y: p.y + ay * along + ax * across }));
+
+  const long = line(110, 300, 920, 300);
+
+  it('gives a short stroke the absolute tolerance of a medium one', () => {
+    // 120 units (12% of the box, ~33 px on a 280 px pad) beside the dot
+    const user = canvas(shift(dot, 0, 120));
+    const r = evaluateStroke(user, dot, dotLength, scale, box);
+    expect(r.accepted).toBe(true);
+  });
+
+  it('still rejects a short stroke drawn far from its place', () => {
+    const user = canvas(shift(dot, 0, 250));
+    const r = evaluateStroke(user, dot, dotLength, scale, box);
+    expect(r.accepted).toBe(false);
+  });
+
+  it('scores long strokes as before', () => {
+    const user = canvas(line(110, 600, 920, 600));
+    const r = evaluateStroke(user, long, 810, scale, box);
+    expect(r.score).toBeCloseTo(1 - 300 / 810, 2);
+  });
+
+  it('still catches a reversed short stroke', () => {
+    const user = canvas(shift([...dot].reverse(), 0, 40));
+    const r = evaluateStroke(user, dot, dotLength, scale, box);
+    expect(r.rejection).toBe('wrong-direction');
+  });
+
+  it('still catches a reversed stroke drawn away from its place', () => {
+    const user = canvas(line(920, 500, 110, 500));
+    const r = evaluateStroke(user, long, 810, scale, box);
+    expect(r.rejection).toBe('wrong-direction');
+  });
+
+  it('accepts a quick dot about half the expected length', () => {
+    const user = canvas(line(460, 98, 540, 161)); // ~102 units, 55%
+    const r = evaluateStroke(user, dot, dotLength, scale, box);
+    expect(r.rejection).toBeUndefined();
+    expect(r.accepted).toBe(true);
+  });
+
+  it('keeps the length rule for long strokes', () => {
+    const user = canvas(line(110, 300, 610, 300)); // 500 of 810
+    const r = evaluateStroke(user, long, 810, scale, box);
+    expect(r.rejection).toBe('too-short');
+  });
+});

@@ -1,7 +1,7 @@
 import type { Kaku, CharacterData } from '@kaspars/kaku';
 import { StrokeInput } from './stroke-input.js';
 import { evaluateStroke, resamplePoints } from './stroke-evaluator.js';
-import type { Point, EvaluationResult, EvaluatorOptions } from './types.js';
+import type { Point, EvaluationResult, EvaluatorOptions, StrokeAttempt } from './types.js';
 
 export interface KakuRenOptions {
   /** Kaku instance to overlay practice on */
@@ -45,6 +45,11 @@ export interface KakuRenOptions {
   hintColor?: string;
   /** Duration of hint draw animation in seconds (default: 0.6) */
   hintDuration?: number;
+  /**
+   * Called for every stroke drawn, accepted or not, before onAccept or
+   * onReject: the raw input with its evaluation, for logging or analysis
+   */
+  onStroke?: (attempt: StrokeAttempt) => void;
   /** Called when a stroke is accepted */
   onAccept?: (index: number, result: EvaluationResult) => void;
   /** Called when a stroke is rejected */
@@ -112,6 +117,7 @@ export class KakuRen {
   private readonly guideColor: string;
   private readonly hintColor: string;
   private readonly hintDuration: number;
+  private readonly onStroke?: (attempt: StrokeAttempt) => void;
   private readonly onAccept?: (index: number, result: EvaluationResult) => void;
   private readonly onReject?: (index: number, result: EvaluationResult) => void;
   private readonly onComplete?: (averageScore: number) => void;
@@ -127,6 +133,7 @@ export class KakuRen {
     this.guideColor = options.guideColor ?? '#ddd';
     this.hintColor = options.hintColor ?? '#c44';
     this.hintDuration = options.hintDuration ?? 0.6;
+    this.onStroke = options.onStroke;
     this.onAccept = options.onAccept;
     this.onReject = options.onReject;
     this.onComplete = options.onComplete;
@@ -145,7 +152,7 @@ export class KakuRen {
       height: this.height,
       strokeColor: options.strokeColor,
       strokeWidth,
-      onStrokeEnd: (points) => this.handleStroke(points),
+      onStrokeEnd: (points, times) => this.handleStroke(points, times),
     });
   }
 
@@ -348,7 +355,7 @@ export class KakuRen {
     this.guideSvg = guideSvg;
   }
 
-  private async handleStroke(userPoints: Point[]): Promise<void> {
+  private async handleStroke(userPoints: Point[], times: number[] = []): Promise<void> {
     const charData = this.kaku.getCharacterData();
     if (!charData) return;
 
@@ -372,10 +379,17 @@ export class KakuRen {
       expectedPoints,
       expectedLength,
       scaleFactor,
-      this.evaluationOptions,
+      { viewBoxSize: viewBoxWidth, ...this.evaluationOptions },
     );
 
     this.scores.push(result.score);
+    this.onStroke?.({
+      index: strokeIndex,
+      result,
+      points: userPoints.map(p => ({ x: p.x / scaleFactor, y: p.y / scaleFactor })),
+      times,
+      expectedLength,
+    });
 
     if (result.accepted) {
       // Morph user drawing into correct stroke, then advance

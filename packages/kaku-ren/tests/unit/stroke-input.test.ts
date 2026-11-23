@@ -95,6 +95,22 @@ describe('StrokeInput', () => {
     expect(points[2]).toEqual({ x: 50, y: 60 });
   });
 
+  it('passes the time of each point since the stroke began', () => {
+    const onStrokeEnd = vi.fn();
+    input = new StrokeInput({ container, width: 200, height: 200, onStrokeEnd });
+    const canvas = input.getCanvas();
+    firePointerEvent(canvas, 'pointerdown', 10, 20);
+    firePointerEvent(canvas, 'pointermove', 30, 40);
+    firePointerEvent(canvas, 'pointermove', 50, 60);
+    firePointerEvent(window, 'pointerup', 50, 60);
+
+    const times: number[] = onStrokeEnd.mock.calls[0][1];
+    expect(times).toHaveLength(3);
+    expect(times[0]).toBe(0);
+    expect(times[1]).toBeGreaterThanOrEqual(0);
+    expect(times[2]).toBeGreaterThanOrEqual(times[1]);
+  });
+
   it('does not fire onStrokeEnd for single point (tap)', () => {
     const onStrokeEnd = vi.fn();
     input = new StrokeInput({ container, width: 200, height: 200, onStrokeEnd });
