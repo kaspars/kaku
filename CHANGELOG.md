@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.5.0] – 2026-11-23
+
 ### Added (`@kaspars/kaku`)
 - `MoeProvider` — stroke data for the Taiwan Ministry of Education's
   standard forms and stroke order (常用國字標準字體筆順學習網), read from a
@@ -21,6 +25,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `dropDuplicates: false`. See `docs/moe.md`.
 - `FallbackProvider` — asks providers in turn and answers from the first
   that has the character, e.g. MOE with AnimCJK behind it.
+
+### Changed (`@kaspars/kaku-ren`)
+- No changes; released with kaku as always.
 
 ---
 
