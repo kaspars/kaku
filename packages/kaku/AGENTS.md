@@ -49,6 +49,8 @@ Kaku is a TypeScript library for animating CJK (Chinese/Japanese/Korean) charact
 | `src/core/kaku-diagram.ts` | Renders stroke order diagrams as multiple SVGs |
 | `src/providers/kanjivg-provider.ts` | Fetches and parses KanjiVG SVG files |
 | `src/providers/animcjk-provider.ts` | Fetches and parses AnimCJK SVG files |
+| `src/providers/moe-provider.ts` | Fetches Taiwan MOE JSON (g0v), drops repeated strokes, builds AnimCJK-layout SVG |
+| `src/providers/fallback-provider.ts` | Chains providers; first that has the character answers |
 | `src/renderer/svg-renderer.ts` | Default renderer for KanjiVG (creates SVG paths) |
 | `src/renderer/animcjk-renderer.ts` | Renderer for AnimCJK (embeds native SVG with clip-path) |
 | `src/renderer/stroke-path.ts` | Wraps path elements with animation methods |

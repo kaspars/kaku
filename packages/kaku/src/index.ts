@@ -9,6 +9,9 @@ export { KanjiVGProvider } from './providers/kanjivg-provider.js';
 export type { KanjiVGProviderOptions } from './providers/kanjivg-provider.js';
 export { AnimCJKProvider } from './providers/animcjk-provider.js';
 export type { AnimCJKProviderOptions, AnimCJKLanguage } from './providers/animcjk-provider.js';
+export { MoeProvider } from './providers/moe-provider.js';
+export type { MoeProviderOptions } from './providers/moe-provider.js';
+export { FallbackProvider } from './providers/fallback-provider.js';
 
 // Renderers
 export { SvgRenderer } from './renderer/svg-renderer.js';

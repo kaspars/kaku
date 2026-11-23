@@ -13,16 +13,22 @@ kaku-ren depends on kaku. kaku is standalone.
 
 ## Data Providers
 
-Two data providers are available for character stroke data:
+Three data providers are available for character stroke data:
 
 | Provider | Characters | Source |
 |----------|-----------|--------|
 | KanjiVGProvider | Japanese kanji + kana | [KanjiVG](http://kanjivg.tagaini.net/) |
 | AnimCJKProvider | Japanese, Chinese (simplified/traditional), Korean | [AnimCJK](https://github.com/parsimonhi/animCJK) |
+| MoeProvider | Traditional Chinese, Taiwan standard forms and order | Taiwan Ministry of Education via [g0v/zh-stroke-data](https://github.com/g0v/zh-stroke-data); not open, no default URL |
+
+`FallbackProvider` chains providers that share a renderer (MOE then AnimCJK, for example).
+
 
 Each provider fetches SVG files from a configurable base URL and normalizes them into `CharacterData`. AnimCJK also stores `rawSvg` for native rendering via `AnimCJKRenderer`.
 
-See `docs/kanjivg.md` and `docs/animcjk.md` for detailed format documentation.
+See `docs/kanjivg.md`, `docs/animcjk.md` and `docs/moe.md` for detailed format documentation. MoeProvider builds an AnimCJK-layout `rawSvg` (scaled from MOE's 2150 grid to 1024), so it renders with `AnimCJKRenderer`.
+
+The demo's MOE options read a local copy of zh-stroke-data's `json/` directory at `public/moe` (gitignored; a symlink is fine). Without it they report the character as missing, which is what the Pages deploy shows.
 
 ## Structure
 
@@ -59,7 +65,7 @@ Runs on Node 24 — the project tracks the current LTS, and the Pages workflow
 pins the same major. Tests, builds, and the dev server all run through npm
 workspaces from the repo root.
 
-Full suite: 303 tests in `kaku`, 89 in `kaku-ren`.
+Full suite: 319 tests in `kaku`, 89 in `kaku-ren`.
 
 ## Demo
 

@@ -185,7 +185,7 @@ import { KakuDiagram, KanjiVGProvider } from '@kaspars/kaku';
 const provider = new KanjiVGProvider({ basePath: '/kanjivg' });
 
 const diagram = new KakuDiagram({
-  provider,  // Works with KanjiVGProvider or AnimCJKProvider
+  provider,  // Works with any provider: KanjiVGProvider, AnimCJKProvider, MoeProvider…
   container: document.getElementById('diagram'),
   size: 80,
   strokeColor: '#333',
@@ -248,6 +248,33 @@ const provider = new AnimCJKProvider({
 ```
 
 Requires `AnimCJKRenderer` to display calligraphic stroke shapes. Files are named by decimal codepoint (`23383.svg`) with a 1024x1024 viewBox. Japanese falls back from `svgsJa/` to `svgsJaKana/` for kana characters. Character data is cached in memory after the first fetch.
+
+#### MoeProvider
+
+Data provider for the Taiwan Ministry of Education's standard forms and stroke order (常用國字標準字體筆順學習網), as JSON from [g0v/zh-stroke-data](https://github.com/g0v/zh-stroke-data). Covers about 4,800 traditional characters.
+
+```typescript
+const provider = new MoeProvider({
+  basePath: '/strokes/moe',  // Required: your copy of zh-stroke-data's json/ directory
+  dropDuplicates: true,      // Optional (default true): drop strokes the data repeats
+  fetch: customFetch         // Optional custom fetch function
+});
+```
+
+The data is **not open**: it is © the Ministry of Education (Taiwan), for non-commercial educational use, so there is no default URL; host your own copy and check the terms suit your use. Files are named by lowercase hex codepoint (`52fb.json`). The provider scales the data's 2150 grid to a 1024 viewBox and builds an SVG in AnimCJK's layout, so it uses `AnimCJKRenderer`, and KakuRen scores against the stroke centre lines. A few characters in the scraped data repeat a stroke (年, 回, 寓; 懂 twice over); they are dropped unless `dropDuplicates` is false. See [docs/moe.md](../../docs/moe.md).
+
+#### FallbackProvider
+
+Asks providers in turn and answers from the first that has the character; `CharacterData.source` names the one that did.
+
+```typescript
+const provider = new FallbackProvider([
+  new MoeProvider({ basePath: '/strokes/moe' }),
+  new AnimCJKProvider({ basePath: '/strokes/animcjk', language: 'zh-Hant' }),
+]);
+```
+
+Kaku draws every character with the one renderer it was given, so the providers must suit it: `MoeProvider` and `AnimCJKProvider` both suit `AnimCJKRenderer`, while `KanjiVGProvider` needs `SvgRenderer`.
 
 ### CharacterData
 
@@ -346,6 +373,8 @@ Stroke data is provided by these open-source projects:
 
 - **[KanjiVG](http://kanjivg.tagaini.net/)** by Ulrich Apel — Japanese kanji and kana stroke data. Licensed under [Creative Commons Attribution-Share Alike 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
 - **[AnimCJK](https://github.com/parsimonhi/animCJK)** by parsimonhi — Japanese, Chinese, and Korean stroke data with calligraphic outlines. Licensed under [Arphic Public License](https://github.com/ArtifexSoftware/urw-base35-fonts/blob/master/LICENSE) and [LGPL](https://www.gnu.org/licenses/lgpl-3.0.html).
+
+`MoeProvider` reads data that is not bundled or linked by default: the Taiwan Ministry of Education's [國字標準字體筆順學習網](https://stroke-order.learningweb.moe.edu.tw/), © Ministry of Education, for non-commercial educational use, as converted by [g0v/zh-stroke-data](https://github.com/g0v/zh-stroke-data).
 
 ## License
 

@@ -359,6 +359,8 @@
           <select id="providerSelect">
             <option value="kanjivg">KanjiVG</option>
             <option value="animcjk">AnimCJK</option>
+            <option value="moe">Taiwan MOE (local copy)</option>
+            <option value="moe-animcjk">Taiwan MOE → AnimCJK</option>
           </select>
         </div>
         <div class="toolbar-field">
@@ -443,6 +445,8 @@
           <select id="diagramProviderSelect">
             <option value="kanjivg">KanjiVG</option>
             <option value="animcjk">AnimCJK</option>
+            <option value="moe">Taiwan MOE (local copy)</option>
+            <option value="moe-animcjk">Taiwan MOE → AnimCJK</option>
           </select>
         </div>
         <div class="toolbar-field">
@@ -482,6 +486,8 @@
           <select id="practiceProviderSelect">
             <option value="kanjivg">KanjiVG</option>
             <option value="animcjk">AnimCJK</option>
+            <option value="moe">Taiwan MOE (local copy)</option>
+            <option value="moe-animcjk">Taiwan MOE → AnimCJK</option>
           </select>
         </div>
         <div class="toolbar-field">
@@ -545,10 +551,14 @@
     Stroke data provided by
     <a href="http://kanjivg.tagaini.net/" style="color: #888;">KanjiVG</a> (CC BY-SA 3.0) and
     <a href="https://github.com/parsimonhi/animCJK" style="color: #888;">AnimCJK</a> (Arphic PL / LGPL).
+    Taiwan MOE: the Ministry of Education's
+    <a href="https://stroke-order.learningweb.moe.edu.tw/" style="color: #888;">國字標準字體筆順學習網</a>
+    via <a href="https://github.com/g0v/zh-stroke-data" style="color: #888;">g0v/zh-stroke-data</a>
+    (© Ministry of Education, non-commercial educational use); not bundled — the demo reads a local copy in <code>public/moe</code>.
   </footer>
 
   <script type="module">
-    import { Kaku, KakuDiagram, KanjiVGProvider, AnimCJKProvider, AnimCJKRenderer } from './packages/kaku/src/index.ts';
+    import { Kaku, KakuDiagram, KanjiVGProvider, AnimCJKProvider, AnimCJKRenderer, MoeProvider, FallbackProvider } from './packages/kaku/src/index.ts';
     import { KakuRen } from './packages/kaku-ren/src/index.ts';
 
     // --- Tab switching ---
@@ -597,8 +607,24 @@
       'zh-Hant': new AnimCJKProvider({ basePath: animcjkBase, language: 'zh-Hant' }),
     };
 
+    // Taiwan MOE stroke data is not open (© Ministry of Education, Taiwan,
+    // non-commercial educational use), so the demo reads a local copy: put
+    // the json/ directory of g0v/zh-stroke-data at public/moe (gitignored).
+    const moeProvider = new MoeProvider({ basePath: new URL('moe', location.href.replace(/[#?].*$/, '')).href });
+    const moeFallback = new FallbackProvider([moeProvider, animcjkProviders['zh-Hant']]);
+
+    function providerFor(name, charClass) {
+      if (name === 'kanjivg') return kanjivgProvider;
+      if (name === 'moe') return moeProvider;
+      if (name === 'moe-animcjk') return moeFallback;
+      return animcjkProviders[charClass];
+    }
+
     // Preset characters per provider + character class
     const presets = {
+      moe: { 'zh-Hant': ['勻', '永', '龍', '漫', '年', '懂', '充'] },
+      // 乃 and 濕 are not in the MOE data: they come from AnimCJK
+      'moe-animcjk': { 'zh-Hant': ['勻', '乃', '濕', '體', '徹'] },
       kanjivg: { ja: ['漢', '字', '学', '書', '愛', 'あ', 'ア'] },
       animcjk: {
         ja: ['漢', '字', '学', '書', '愛', 'あ', 'ア'],
@@ -635,12 +661,11 @@
     window.currentCharClass = 'ja';
 
     function getActiveProvider() {
-      if (window.currentProvider === 'kanjivg') return kanjivgProvider;
-      return animcjkProviders[window.currentCharClass];
+      return providerFor(window.currentProvider, window.currentCharClass);
     }
 
     function createRenderer() {
-      if (window.currentProvider === 'animcjk') {
+      if (window.currentProvider !== 'kanjivg') { // AnimCJK and MOE
         // Factory form: Kaku hands over its own container and size, so they
         // are declared once instead of on both the instance and the renderer.
         return (options) => new AnimCJKRenderer(options);
@@ -800,8 +825,7 @@
     window.diagramCharClass = 'ja';
 
     function getDiagramProvider() {
-      if (window.diagramProvider === 'kanjivg') return kanjivgProvider;
-      return animcjkProviders[window.diagramCharClass];
+      return providerFor(window.diagramProvider, window.diagramCharClass);
     }
 
     function updateDiagramCharClassOptions() {
@@ -914,12 +938,11 @@
     }
 
     function getPracticeProvider() {
-      if (window.practiceProvider === 'kanjivg') return kanjivgProvider;
-      return animcjkProviders[window.practiceCharClass];
+      return providerFor(window.practiceProvider, window.practiceCharClass);
     }
 
     function createPracticeRenderer() {
-      if (window.practiceProvider === 'animcjk') {
+      if (window.practiceProvider !== 'kanjivg') { // AnimCJK and MOE
         return (options) => new AnimCJKRenderer(options);
       }
       return undefined;
@@ -965,7 +988,7 @@
 
       try {
         const size = getPracticeSize();
-        const isAnimCJK = window.practiceProvider === 'animcjk';
+        const isAnimCJK = window.practiceProvider !== 'kanjivg'; // AnimCJK and MOE share a renderer
         const provider = getPracticeProvider();
         const renderer = createPracticeRenderer();
 

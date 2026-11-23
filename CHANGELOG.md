@@ -9,6 +9,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added (`@kaspars/kaku`)
+- `MoeProvider` — stroke data for the Taiwan Ministry of Education's
+  standard forms and stroke order (常用國字標準字體筆順學習網), read from a
+  copy of g0v/zh-stroke-data's JSON. `basePath` is required: the data is
+  © the Ministry, for non-commercial educational use, and is neither
+  bundled nor linked by default. The 2150 grid is scaled to a 1024 viewBox
+  and an AnimCJK-layout SVG is built, so it renders with `AnimCJKRenderer`
+  and KakuRen scores against the stroke centre lines. Strokes the scraped
+  data repeats (13 characters, among them 年, 回 and 懂) are dropped unless
+  `dropDuplicates: false`. See `docs/moe.md`.
+- `FallbackProvider` — asks providers in turn and answers from the first
+  that has the character, e.g. MOE with AnimCJK behind it.
+
 ---
 
 ## [1.4.0] – 2026-11-23
