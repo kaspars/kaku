@@ -83,6 +83,7 @@ interface KakuRenOptions {
   hintDuration?: number;     // Hint draw animation duration in seconds (default: 0.6)
   morphDuration?: number;    // Morph animation duration in ms (default: 80)
   evaluation?: EvaluatorOptions;  // Evaluation tuning
+  onStroke?: (attempt: StrokeAttempt) => void;  // Every stroke, with its points
   onAccept?: (index: number, result: EvaluationResult) => void;
   onReject?: (index: number, result: EvaluationResult) => void;
   onComplete?: (averageScore: number) => void;
@@ -136,15 +137,36 @@ interface EvaluatorOptions {
   acceptThreshold?: number;  // Minimum score to accept (default: 0.5)
   minLengthRatio?: number;   // Min user length vs expected (default: 2/3)
   evaluationRatio?: number;  // Higher = more lenient (default: 1)
+  shortStrokeFloor?: number; // Shortest judged length, fraction of the viewBox (default: 0.3)
+  viewBoxSize?: number;      // viewBox width (default: 109; KakuRen sets it)
 }
 ```
 
 Scoring compares the user's stroke against the expected path in viewBox space:
-both are resampled to `sampleCount` equidistant points, the average distance
-between corresponding points is normalised by the expected stroke length (making
-it scale-invariant), and short strokes get a leniency boost since they are
-harder to hit precisely. Raise `evaluationRatio` or lower `acceptThreshold` to
-be more forgiving.
+both are resampled to `sampleCount` equidistant points, and the average distance
+between corresponding points is normalised by the expected stroke length, so
+long strokes tolerate proportionally more drift. A stroke shorter than
+`shortStrokeFloor` × the viewBox size is judged as if it had that length:
+placing a dot is no more precise than placing a longer stroke, so it gets the
+same absolute tolerance. Its minimum drawn length (`minLengthRatio`) also eases
+off, with the square root of the shortfall, so a quick flick for a dot counts.
+Raise `evaluationRatio` or lower `acceptThreshold` to be more forgiving.
+
+### StrokeAttempt
+
+`onStroke` receives every evaluated stroke, before `onAccept` or `onReject`:
+
+```typescript
+interface StrokeAttempt {
+  index: number;             // Expected stroke
+  result: EvaluationResult;
+  points: Point[];           // The user's raw points, in viewBox units
+  times: number[];           // ms since the stroke began, one per point
+  expectedLength: number;    // viewBox units
+}
+```
+
+Log these to replay strokes against a different evaluator later.
 
 ### Lower-level Exports
 
