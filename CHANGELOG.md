@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.4.0] – 2026-11-23
+
 ### Added (`@kaspars/kaku`)
 - `renderer` now accepts a factory — `(options) => new AnimCJKRenderer(options)`
   — which receives the `container`, `size`, `width` and `height` already given
@@ -26,6 +30,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   owns its own, and points at the factory form. `container` is correspondingly
   optional when `renderer` is a pre-built instance, and `Kaku` throws when
   neither is supplied.
+
+### Added (`@kaspars/kaku-ren`)
+- `onStroke(attempt)` — called for every evaluated stroke, accepted or not,
+  with the raw points in viewBox units, the time of each point since the
+  stroke began, the expected length and the `EvaluationResult`. Meant for
+  logging and replaying strokes. Exported as the `StrokeAttempt` type.
+- `StrokeInput`'s `onStrokeEnd` receives the point times as a second argument.
+- `EvaluatorOptions.shortStrokeFloor` (default 0.3) and
+  `EvaluatorOptions.viewBoxSize` (default 109; `KakuRen` sets it from the
+  loaded character).
+
+### Fixed (`@kaspars/kaku-ren`)
+- Short strokes were judged far more strictly than long ones on AnimCJK.
+  The score normalised the distance by the stroke's own length, and the
+  short-stroke boost used absolute thresholds in KanjiVG units (under 20
+  and 30), which never applied on AnimCJK's 1024 box: a dot had to be
+  placed about four times more precisely than a long stroke. Strokes
+  shorter than `shortStrokeFloor` × the viewBox size are now judged as if
+  they had that length, and their minimum drawn length (`minLengthRatio`)
+  eases off with the square root of the shortfall, so a quick flick for a
+  dot is not rejected as too short. Long strokes score as before; on
+  KanjiVG the floor (≈33 units) stands in for the old boost.
 
 ---
 
