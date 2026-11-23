@@ -11,6 +11,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.5.1] – 2026-11-23
+
+### Fixed (`@kaspars/kaku`)
+- `MoeProvider` cuts a stroke's track where it jumps back to an earlier
+  point. Three tracks in the scraped data run on past the stroke's end and
+  jump back (刃 stroke 2, 妒 6, 刈 4), so the stroke seemed to end near its
+  start: KakuRen rejected correct strokes as drawn the wrong way, or too
+  short. A segment longer than 40% of the track's span that lands within
+  12% of an earlier point counts as a jump; hooks are untouched. Across the
+  4,847 files this changes exactly those three.
+
+### Changed (`@kaspars/kaku-ren`)
+- No changes; released with kaku as always.
+
+---
+
 ## [1.5.0] – 2026-11-23
 
 ### Added (`@kaspars/kaku`)

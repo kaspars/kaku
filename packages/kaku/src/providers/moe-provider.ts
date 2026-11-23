@@ -55,6 +55,15 @@ const SAME_ENDS = 130;
 const SAME_BOX = 0.6;
 
 /**
+ * A track segment longer than this share of the track's span that lands
+ * this close (share of span) to an earlier point jumps back: the scraped
+ * data has three (刃, 妒, 刈), after the stroke's real end. Hooks turn back
+ * for a short way and are not touched.
+ */
+const JUMP_LENGTH = 0.4;
+const JUMP_LANDING = 0.12;
+
+/**
  * Data provider for the stroke data of the Taiwan Ministry of Education's
  * 常用國字標準字體筆順學習網 (standard forms and stroke order), as converted
  * to JSON by g0v/zh-stroke-data.
@@ -111,6 +120,7 @@ export class MoeProvider implements DataProvider {
       if (!Array.isArray(strokes) || strokes.length === 0) {
         return { success: false, error: new Error(`No strokes in MOE data: ${char}`) };
       }
+      strokes = strokes.map((s) => ({ ...s, track: withoutJumpBack(s.track) }));
       if (this.dropDuplicates) strokes = withoutRepeats(strokes);
       const data = toCharacterData(char, cp, strokes);
       this.cache.set(char, data);
@@ -210,7 +220,7 @@ function overlap(a: [number, number, number, number], b: [number, number, number
 }
 
 function near(a: MoePoint, b: MoePoint): boolean {
-  return Math.hypot(a.x - b.x, a.y - b.y) < SAME_ENDS;
+  return dist(a, b) < SAME_ENDS;
 }
 
 function repeats(a: MoeStroke, b: MoeStroke): boolean {
@@ -219,6 +229,22 @@ function repeats(a: MoeStroke, b: MoeStroke): boolean {
     near(a.track[a.track.length - 1], b.track[b.track.length - 1]) &&
     overlap(bounds(a), bounds(b)) > SAME_BOX
   );
+}
+
+function dist(a: MoePoint, b: MoePoint): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/** The track up to where it jumps back to an earlier point, if it does. */
+function withoutJumpBack(track: MoePoint[]): MoePoint[] {
+  let span = 0;
+  for (const a of track) for (const b of track) span = Math.max(span, dist(a, b));
+  for (let k = 2; k < track.length; k++) {
+    if (dist(track[k - 1], track[k]) <= JUMP_LENGTH * span) continue;
+    const landing = Math.min(...track.slice(0, k - 1).map((p) => dist(p, track[k])));
+    if (landing < JUMP_LANDING * span) return track.slice(0, k);
+  }
+  return track;
 }
 
 function withoutRepeats(strokes: MoeStroke[]): MoeStroke[] {

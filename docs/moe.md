@@ -45,4 +45,8 @@ One file per character, named by **lowercase hex** codepoint: `52fb.json` for �
 
 The scraped data repeats a stroke in 13 characters (30 strokes): 回 寓 寞 年 慰 懂 榻 漫 瞞 薄 藐 蝨 製; 懂 is there twice over. A stroke is a repeat when its track starts and ends within 130 grid units (about 6% of the box) of an earlier stroke's and their outlines' bounding boxes overlap by more than 60% (intersection over union). That catches all 30 and nothing else in the set. `dropDuplicates: false` keeps them.
 
+Three tracks run on past the stroke's end and jump back to an earlier point (刃 stroke 2, 妒 6, 刈 4), so the stroke seems to end near its start and KakuRen would reject correct drawings as backwards. `MoeProvider` cuts a track at a segment longer than 40% of its span that lands within 12% of an earlier point; that touches exactly these three, and hooks, which turn back only a little, are left alone. This is not optional.
+
+Compared with AnimCJK's traditional set stroke by stroke (1,565 characters with equal counts), only 藉 stroke 5 runs the other way, and that is the Taiwan form: 耒 starts with a falling stroke where AnimCJK has the mainland horizontal. The 33 strokes that sit elsewhere are stroke-order differences (來, 感, 房, 皮…), where the MOE data is the standard.
+
 The Ministry's site has since moved its data (`provideStrokeInfo.do?ucs=<hex>` replaced the `big5=` form that g0v used), and the 2017 scrape is not refreshed.

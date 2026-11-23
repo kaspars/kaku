@@ -261,7 +261,7 @@ const provider = new MoeProvider({
 });
 ```
 
-The data is **not open**: it is © the Ministry of Education (Taiwan), for non-commercial educational use, so there is no default URL; host your own copy and check the terms suit your use. Files are named by lowercase hex codepoint (`52fb.json`). The provider scales the data's 2150 grid to a 1024 viewBox and builds an SVG in AnimCJK's layout, so it uses `AnimCJKRenderer`, and KakuRen scores against the stroke centre lines. A few characters in the scraped data repeat a stroke (年, 回, 寓; 懂 twice over); they are dropped unless `dropDuplicates` is false. See [docs/moe.md](../../docs/moe.md).
+The data is **not open**: it is © the Ministry of Education (Taiwan), for non-commercial educational use, so there is no default URL; host your own copy and check the terms suit your use. Files are named by lowercase hex codepoint (`52fb.json`). The provider scales the data's 2150 grid to a 1024 viewBox and builds an SVG in AnimCJK's layout, so it uses `AnimCJKRenderer`, and KakuRen scores against the stroke centre lines. A few characters in the scraped data repeat a stroke (年, 回, 寓; 懂 twice over); they are dropped unless `dropDuplicates` is false. Three tracks that jump back past the stroke's end (刃, 妒, 刈) are cut at the jump. See [docs/moe.md](../../docs/moe.md).
 
 #### FallbackProvider
 

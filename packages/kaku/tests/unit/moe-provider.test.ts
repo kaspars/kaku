@@ -84,6 +84,27 @@ describe('MoeProvider', () => {
     expect(r.data.strokes).toHaveLength(3);
   });
 
+  it('cuts a track where it jumps back to an earlier point', async () => {
+    // 刃's second stroke in the scraped data: a sweep down-left, then a jump
+    // back to where it started. Hooks, which turn back a little, stay.
+    const blade = JSON.stringify([
+      {
+        outline: [{ type: 'M', x: 520, y: 400 }, { type: 'L', x: 1830, y: 400 }, { type: 'L', x: 1060, y: 1700 }],
+        // a horizontal with a hook turning back up-left at the end: stays whole
+        track: [{ x: 520, y: 570 }, { x: 1580, y: 420 }, { x: 1670, y: 510 }, { x: 1450, y: 1420 }, { x: 1260, y: 1690 }, { x: 1070, y: 1460 }],
+      },
+      {
+        outline: [{ type: 'M', x: 1000, y: 570 }, { type: 'L', x: 340, y: 1620 }, { type: 'L', x: 1040, y: 570 }],
+        track: [{ x: 1003, y: 572 }, { x: 921, y: 880 }, { x: 675, y: 1358 }, { x: 341, y: 1619 }, { x: 1021, y: 570 }, { x: 1016, y: 566 }],
+      },
+    ]);
+    fetch.mockResolvedValueOnce(ok(blade));
+    const r = await provider.getCharacter('刃');
+    if (!r.success) throw r.error;
+    expect(r.data.strokes[0].pathData.split('L')).toHaveLength(6);
+    expect(r.data.strokes[1].pathData).toBe('M477.7 272.4L438.7 419.1L321.5 646.8L162.4 771.1');
+  });
+
   it('renders with AnimCJKRenderer', async () => {
     const r = await provider.getCharacter('十');
     if (!r.success) throw r.error;
