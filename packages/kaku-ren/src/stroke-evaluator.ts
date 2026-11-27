@@ -40,22 +40,46 @@ export function evaluateStroke(
   const resampledUser = resamplePoints(userPoints, N);
 
   // Convert user points from canvas space to viewBox space
-  const scaledUser = resampledUser.map(p => ({
+  let scaledUser = resampledUser.map(p => ({
     x: p.x / scaleFactor,
     y: p.y / scaleFactor,
   }));
+
+  // Forgive a displacement of the whole stroke, up to the tolerance
+  const tolerance = (options.offsetTolerance ?? 0) * (options.viewBoxSize ?? DEFAULT_VIEWBOX_SIZE);
+  if (tolerance > 0) {
+    const u = centroid(scaledUser);
+    const e = centroid(expectedPoints);
+    const dx = u.x - e.x;
+    const dy = u.y - e.y;
+    const k = Math.min(1, tolerance / (Math.hypot(dx, dy) || 1));
+    scaledUser = scaledUser.map(p => ({ x: p.x - dx * k, y: p.y - dy * k }));
+  }
 
   // Check direction: compare forward vs reversed alignment
   if (isWrongDirection(scaledUser, expectedPoints)) {
     return { score: 0, accepted: false, rejection: 'wrong-direction' };
   }
 
+  // With its position forgiven, a stroke crossing the expected one could
+  // score well: its overall direction must match too.
+  if (
+    tolerance > 0 &&
+    turn(scaledUser[0], scaledUser[scaledUser.length - 1], expectedPoints[0], expectedPoints[expectedPoints.length - 1]) >
+      MAX_OFFSET_TURN
+  ) {
+    return { score: 0, accepted: false };
+  }
+
   // Compute user stroke length in viewBox space
   const userLength = pathLength(scaledUser);
 
-  // Reject if user stroke is too short. Below the floor the ratio eases off
-  // with the square root of the length, as dots are drawn as quick flicks.
-  if (userLength < expectedLength * minLengthRatio * Math.sqrt(expectedLength / judgedLength)) {
+  // Reject if user stroke is too short. A hook or brush flick at the end of
+  // the expected stroke doesn't count: a finger often stops before it. Below
+  // the floor the ratio eases off with the square root of the length, as
+  // dots are drawn as quick flicks.
+  const core = expectedLength - endFlickLength(expectedPoints, expectedLength);
+  if (userLength < core * minLengthRatio * Math.sqrt(core / Math.max(core, floor))) {
     return { score: 0, accepted: false, rejection: 'too-short' };
   }
 
@@ -183,4 +207,54 @@ function distance(a: Point, b: Point): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Centroid of a point array.
+ */
+function centroid(points: Point[]): Point {
+  let x = 0;
+  let y = 0;
+  for (const p of points) {
+    x += p.x;
+    y += p.y;
+  }
+  return { x: x / points.length, y: y / points.length };
+}
+
+/** Under an offset tolerance, the largest angle (degrees) between the user's and the expected start-to-end direction. */
+const MAX_OFFSET_TURN = 50;
+
+/** A turn sharper than this (degrees) starts an end flick. */
+const FLICK_TURN = 100;
+/** An end flick is at most this share of the stroke. */
+const FLICK_SHARE = 0.3;
+
+/**
+ * Length of a hook or brush flick at the end of a stroke: the part after
+ * its last sharp turn, if that part is short. Points are equidistant, so a
+ * turn can fall between two samples; the direction is compared across two
+ * segments to catch it.
+ */
+function endFlickLength(points: Point[], length: number): number {
+  let flick = 0;
+  for (let k = points.length - 1; k >= 3; k--) {
+    flick += distance(points[k - 1], points[k]);
+    if (flick > FLICK_SHARE * length) return 0;
+    if (turn(points[k - 3], points[k - 2], points[k - 1], points[k]) > FLICK_TURN) return flick;
+  }
+  return 0;
+}
+
+/**
+ * Angle in degrees between the direction a→b and c→d.
+ */
+function turn(a: Point, b: Point, c: Point, d: Point): number {
+  const ux = b.x - a.x;
+  const uy = b.y - a.y;
+  const vx = d.x - c.x;
+  const vy = d.y - c.y;
+  const n = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+  if (n === 0) return 0;
+  return (Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / n))) * 180) / Math.PI;
 }

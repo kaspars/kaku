@@ -11,6 +11,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.6.0] – 2026-11-27
+
+### Added (`@kaspars/kaku-ren`)
+- `firstStrokeOffset` — the first stroke may sit this far (fraction of the
+  viewBox) from its place without penalty; where a character starts on the
+  pad is the writer's choice, and later strokes follow it. Backed by
+  `EvaluatorOptions.offsetTolerance`, which also requires the stroke's
+  start-to-end direction to be within 50° of the expected one.
+- `hintTooShort` — `false` clears a too-short stroke without playing the
+  hint, so a stub doesn't reveal the answer.
+
+### Changed (`@kaspars/kaku-ren`)
+- A hook or brush flick at the end of the expected stroke no longer counts
+  towards the minimum length. Replaying 5,100 logged strokes, 33 of 132
+  too-short rejections pass (turning strokes of 日 目 白 自, whose MOE
+  tracks end in a flick) and no accepted stroke is rejected.
+
+### Changed (`@kaspars/kaku`)
+- No changes; released with kaku-ren as always.
+
+---
+
 ## [1.5.1] – 2026-11-23
 
 ### Fixed (`@kaspars/kaku`)

@@ -719,4 +719,54 @@ describe('KakuRen', () => {
       expect(onStroke.mock.calls[0][0].result.accepted).toBe(true);
     });
   });
+
+  describe('first stroke offset and too-short hints', () => {
+    // goodStroke draws the stroke at viewBox y; the first expected stroke is at y=20
+    const shifted = (dy: number) => goodStroke(20 + dy);
+
+    it('rejects a first stroke drawn well below its place, by default', async () => {
+      const onStroke = vi.fn();
+      ren = new KakuRen({ kaku: makeMockKaku() as any, container, size: 200, onStroke });
+      drawStroke(getCanvas(container), shifted(50));
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(onStroke.mock.calls[0][0].result.accepted).toBe(false);
+    });
+
+    it('accepts it with firstStrokeOffset, but not a later stroke so placed', async () => {
+      const onStroke = vi.fn();
+      ren = new KakuRen({ kaku: makeMockKaku() as any, container, size: 200, onStroke, firstStrokeOffset: 0.4 });
+      drawStroke(getCanvas(container), shifted(50));
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(onStroke.mock.calls[0][0].result.accepted).toBe(true);
+      drawStroke(getCanvas(container), goodStroke(45 + 50)); // the second stroke, as far off
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(onStroke.mock.calls[1][0].index).toBe(1);
+      expect(onStroke.mock.calls[1][0].result.accepted).toBe(false);
+    });
+
+    it('shows no hint for a too-short stroke with hintTooShort: false', async () => {
+      const kaku = makeMockKaku();
+      const onReject = vi.fn();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, onReject, hintTooShort: false });
+      drawStroke(getCanvas(container), badStroke());
+      flushRaf();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(onReject).toHaveBeenCalledOnce();
+      expect(onReject.mock.calls[0][1].rejection).toBe('too-short');
+      expect(kaku.getRenderedStrokes()[0].setTransition).not.toHaveBeenCalled();
+      expect(ren.enabled).toBe(true);
+    });
+
+    it('still shows hints for other rejections with hintTooShort: false', async () => {
+      const kaku = makeMockKaku();
+      ren = new KakuRen({ kaku: kaku as any, container, size: 200, hintTooShort: false });
+      drawStroke(getCanvas(container), reversedStroke(20));
+      flushRaf();
+      expect(kaku.getRenderedStrokes()[0].setTransition).toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+  });
 });

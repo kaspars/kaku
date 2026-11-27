@@ -83,6 +83,8 @@ interface KakuRenOptions {
   hintDuration?: number;     // Hint draw animation duration in seconds (default: 0.6)
   morphDuration?: number;    // Morph animation duration in ms (default: 80)
   evaluation?: EvaluatorOptions;  // Evaluation tuning
+  firstStrokeOffset?: number;     // First stroke may sit this far off (fraction of viewBox; default 0)
+  hintTooShort?: boolean;         // Show the hint for a too-short stroke (default true)
   onStroke?: (attempt: StrokeAttempt) => void;  // Every stroke, with its points
   onAccept?: (index: number, result: EvaluationResult) => void;
   onReject?: (index: number, result: EvaluationResult) => void;
@@ -139,6 +141,7 @@ interface EvaluatorOptions {
   evaluationRatio?: number;  // Higher = more lenient (default: 1)
   shortStrokeFloor?: number; // Shortest judged length, fraction of the viewBox (default: 0.3)
   viewBoxSize?: number;      // viewBox width (default: 109; KakuRen sets it)
+  offsetTolerance?: number;  // Forgiven displacement of the whole stroke, fraction of the viewBox (default: 0)
 }
 ```
 
@@ -150,6 +153,12 @@ long strokes tolerate proportionally more drift. A stroke shorter than
 placing a dot is no more precise than placing a longer stroke, so it gets the
 same absolute tolerance. Its minimum drawn length (`minLengthRatio`) also eases
 off, with the square root of the shortfall, so a quick flick for a dot counts.
+A hook or brush flick at the end of the expected stroke (the part after its last turn sharper than 100°, if under 30% of the stroke) does not count towards the minimum length: a finger often stops before it.
+
+Where a character starts on the pad is the writer's choice. `firstStrokeOffset` (KakuRen) sets `offsetTolerance` for the first stroke only: the user's stroke is moved towards the expected one by up to that distance before judging, and then its start-to-end direction must be within 50° of the expected one, so a stroke crossing the right one does not pass. Once the first stroke snaps into place, the writer follows it and later strokes are judged as usual. In one user's 5,100 logged strokes, 0.1 turned 27 of 55 low-score rejections, most of them first strokes in the right shape placed differently, into accepts, with none of the accepted strokes rejected.
+
+`hintTooShort: false` clears a too-short stroke without playing the hint, so a stub doesn't reveal the answer; `onReject` still fires with `rejection: 'too-short'`.
+
 Raise `evaluationRatio` or lower `acceptThreshold` to be more forgiving.
 
 ### StrokeAttempt

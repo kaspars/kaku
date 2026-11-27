@@ -41,6 +41,15 @@ export interface EvaluatorOptions {
    * (default: 109). KakuRen sets it from the loaded character.
    */
   viewBoxSize?: number;
+  /**
+   * How far, as a fraction of the viewBox size, the whole stroke may be
+   * displaced without penalty (default: 0). The offset between the user's
+   * stroke and the expected one, up to this distance, is removed before
+   * judging; shape, direction and length are judged as usual. KakuRen uses
+   * it for the first stroke (see `firstStrokeOffset`): where a character
+   * starts on the pad is the writer's choice, and later strokes follow it.
+   */
+  offsetTolerance?: number;
 }
 
 /**

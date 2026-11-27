@@ -323,3 +323,57 @@ describe('evaluateStroke on a 1024 box', () => {
     expect(r.rejection).toBe('too-short');
   });
 });
+
+describe('evaluateStroke: offset tolerance and end flicks', () => {
+  const scale = 280 / 1024;
+  const box = { viewBoxSize: 1024 };
+  const line = (pts: [number, number][], n = 50): Point[] => resamplePoints(pts.map(([x, y]) => ({ x, y })), n);
+  const canvas = (pts: Point[]) => pts.map(p => ({ x: p.x * scale, y: p.y * scale }));
+  const shift = (pts: Point[], dx: number, dy: number) => pts.map(p => ({ x: p.x + dx, y: p.y + dy }));
+  const len = (pts: Point[]) => pts.slice(1).reduce((s, p, i) => s + Math.hypot(p.x - pts[i].x, p.y - pts[i].y), 0);
+
+  // 叮's first stroke: the left vertical of a small 口 placed high.
+  const first = line([[121, 219], [160, 486]]);
+
+  it('rejects a well-drawn stroke placed lower, by default', () => {
+    const user = canvas(shift(first, 90, 190));
+    expect(evaluateStroke(user, first, len(first), scale, box).accepted).toBe(false);
+  });
+
+  it('accepts it when the stroke may be offset', () => {
+    const user = canvas(shift(first, 90, 190));
+    const r = evaluateStroke(user, first, len(first), scale, { ...box, offsetTolerance: 0.25 });
+    expect(r.accepted).toBe(true);
+    expect(r.score).toBeGreaterThan(0.9);
+  });
+
+  it('only forgives the offset up to the tolerance', () => {
+    const user = canvas(shift(first, 400, 300)); // half the box away
+    expect(evaluateStroke(user, first, len(first), scale, { ...box, offsetTolerance: 0.25 }).accepted).toBe(false);
+  });
+
+  it('still judges shape and direction under an offset', () => {
+    const across = canvas(shift(line([[100, 350], [400, 350]]), 50, 0)); // a horizontal, not the vertical
+    expect(evaluateStroke(across, first, len(first), scale, { ...box, offsetTolerance: 0.25 }).accepted).toBe(false);
+    const reversed = canvas(shift([...first].reverse(), 60, 120));
+    expect(evaluateStroke(reversed, first, len(first), scale, { ...box, offsetTolerance: 0.25 }).rejection).toBe('wrong-direction');
+  });
+
+  // 省's turning stroke: across, down, then a brush flick back up-left.
+  const turning = line([[443, 495], [697, 434], [749, 461], [731, 610], [785, 907], [661, 801]]);
+
+  it('does not require the end flick for the length check', () => {
+    // a logged attempt, rejected as too short: across and down, no flick
+    const drawn = line([[437, 574], [556, 532], [666, 523], [689, 607], [667, 814]]);
+    expect(len(drawn) / len(turning)).toBeLessThan(2 / 3);
+    const user = canvas(drawn);
+    const r = evaluateStroke(user, turning, len(turning), scale, box);
+    expect(r.rejection).toBeUndefined();
+    expect(r.accepted).toBe(true);
+  });
+
+  it('still rejects half of a turning stroke as too short', () => {
+    const user = canvas(line([[443, 495], [697, 434], [749, 461], [740, 520]]));
+    expect(evaluateStroke(user, turning, len(turning), scale, box).rejection).toBe('too-short');
+  });
+});

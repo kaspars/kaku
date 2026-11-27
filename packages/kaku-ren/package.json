@@ -1,6 +1,6 @@
 {
   "name": "@kaspars/kaku-ren",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "CJK character stroke practice with drawing input and evaluation",
   "type": "module",
   "main": "./dist/kaku-ren.cjs",

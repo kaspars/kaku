@@ -72,8 +72,10 @@ Without `strokeEffect: 'none'`, Kaku re-animates each accepted stroke after Kaku
 2. Convert user points from canvas coords to viewBox space (109x109 for KanjiVG, 1024x1024 for AnimCJK)
 3. Compute average Euclidean distance between corresponding points
 4. Normalize by the judged length: the expected stroke length, or `shortStrokeFloor` (0.3) × `viewBoxSize` if that is longer. KakuRen passes `viewBoxSize` from the character; the default 109 is KanjiVG's. Without the floor a dot had to be placed about four times more precisely than a long stroke (1.4.0 fix; the old absolute-unit boost never fired on AnimCJK's 1024 box)
-5. Reject if user stroke length < `minLengthRatio` (2/3) × expected × √(expected / judged), so short strokes may be drawn as quick flicks
+5. Reject if user stroke length < `minLengthRatio` (2/3) × core × √(core / judged), so short strokes may be drawn as quick flicks; core is the expected length less an end flick (after the last turn > 100°, if under 30% of the stroke), which fingers often skip
 6. Score = 1 - normalizedDistance / evaluationRatio, clamped to [0, 1]
+
+With `offsetTolerance` (KakuRen's `firstStrokeOffset`, first stroke only), the user's points are first moved by the centroid offset, capped at tolerance × viewBoxSize; after the direction check, the start-to-end directions must agree within 50°. `hintTooShort: false` skips the hint for too-short rejections.
 
 `onStroke` reports each evaluated stroke (raw points in viewBox units, per-point times from `StrokeInput`, result) before `onAccept`/`onReject`, so strokes can be logged and replayed against a changed evaluator.
 

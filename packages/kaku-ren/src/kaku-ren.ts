@@ -29,6 +29,18 @@ export interface KakuRenOptions {
   strokeWidth?: number;
   /** Evaluation options */
   evaluation?: EvaluatorOptions;
+  /**
+   * How far the first stroke may be displaced, as a fraction of the viewBox
+   * size, without penalty (default: 0). Where a character starts on the pad
+   * is the writer's choice; once the first stroke snaps into place, later
+   * strokes follow it and are judged as usual.
+   */
+  firstStrokeOffset?: number;
+  /**
+   * Show the hint for a stroke rejected as too short (default: true). With
+   * false, the stroke is just cleared: a stub shouldn't reveal the answer.
+   */
+  hintTooShort?: boolean;
   /** Duration of morph animation in ms (default: 80) */
   morphDuration?: number;
   /**
@@ -374,12 +386,13 @@ export class KakuRen {
     const { points: expectedPoints, length: expectedLength } = this.getSampledPoints(stroke.pathData, N);
 
     // Evaluate
+    const offset = strokeIndex === 0 ? this.options.firstStrokeOffset : undefined;
     const result = evaluateStroke(
       userPoints,
       expectedPoints,
       expectedLength,
       scaleFactor,
-      { viewBoxSize: viewBoxWidth, ...this.evaluationOptions },
+      { viewBoxSize: viewBoxWidth, ...this.evaluationOptions, ...(offset ? { offsetTolerance: offset } : {}) },
     );
 
     this.scores.push(result.score);
@@ -411,7 +424,9 @@ export class KakuRen {
       // Rejection: clear user stroke and show hint
       this.input.clear();
       this.onReject?.(strokeIndex, result);
-      await this.showHint(strokeIndex, charData, scaleFactor);
+      if (result.rejection !== 'too-short' || this.options.hintTooShort !== false) {
+        await this.showHint(strokeIndex, charData, scaleFactor);
+      }
     }
 
     // Re-enable input (unless completed)
